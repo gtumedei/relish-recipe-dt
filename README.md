@@ -1,5 +1,7 @@
 <div align="center">
 
+![](https://f003.backblazeb2.com/file/dN2jPN/relish-cover.jpg)
+
 # Relish Recipe Digital Twin
 
 </div>
