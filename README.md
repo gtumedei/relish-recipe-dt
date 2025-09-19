@@ -1,8 +1,8 @@
-<center>
+<div align="center">
 
 # Relish Recipe Digital Twin
 
-</center>
+</div>
 
 > [!WARNING]
 > The project is at a very initial stage and everything is subject to sudden changes.
@@ -13,6 +13,8 @@
   Core data models.
 - `database`\
   Logic to store data in a db.
+- `env`\
+  Handles loading and validating environment variables.
 - `ingestor`\
   Logic to ingest data from external sources.
 - `modeling`\

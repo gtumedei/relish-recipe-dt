@@ -1,4 +1,4 @@
 {
-  "name": "@relish/database",
+  "name": "@relish/modeling",
   "exports": "./mod.ts"
 }

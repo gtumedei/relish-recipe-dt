@@ -1,4 +1,13 @@
 {
   "name": "@relish/database",
-  "exports": "./mod.ts"
+  "tasks": {
+    "push": "deno run -A --node-modules-dir npm:drizzle-kit push",
+    "studio": "deno run -A --node-modules-dir npm:drizzle-kit studio"
+  },
+  "exports": "./mod.ts",
+  "imports": {
+    "@libsql/client": "npm:@libsql/client@^0.15.15",
+    "drizzle-kit": "npm:drizzle-kit@^0.31.4",
+    "drizzle-orm": "npm:drizzle-orm@^0.44.5"
+  }
 }
