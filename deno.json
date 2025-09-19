@@ -1,0 +1,7 @@
+{
+  "tasks": {
+    "dev:ingest": "deno run src/ingestor/main.ts"
+  },
+  "imports": {},
+  "workspace": ["./src/*"]
+}

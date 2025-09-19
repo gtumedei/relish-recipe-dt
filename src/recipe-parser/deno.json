@@ -1,0 +1,4 @@
+{
+  "name": "@relish/recipe-parser",
+  "exports": "./mod.ts"
+}

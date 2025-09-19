@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "start": "deno run main.ts"
+  },
+  "imports": {}
+}

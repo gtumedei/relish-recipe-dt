@@ -1,0 +1,4 @@
+{
+  "name": "@relish/core",
+  "exports": "./mod.ts"
+}

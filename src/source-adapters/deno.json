@@ -1,0 +1,4 @@
+{
+  "name": "@relish/source-adapters",
+  "exports": "./mod.ts"
+}
