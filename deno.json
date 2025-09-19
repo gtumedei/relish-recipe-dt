@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev:ingest": "deno run -A src/ingestor/main.ts"
+    "start:ingest": "cd src/ingestor && deno run start"
   },
   "workspace": ["./src/*"]
 }

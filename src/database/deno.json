@@ -1,8 +1,8 @@
 {
   "name": "@relish/database",
   "tasks": {
-    "push": "deno run -A --node-modules-dir npm:drizzle-kit push",
-    "studio": "deno run -A --node-modules-dir npm:drizzle-kit studio"
+    "push": "deno run -A --env-file=../env/.env --node-modules-dir npm:drizzle-kit push",
+    "studio": "deno run -A --env-file=../env/.env --node-modules-dir npm:drizzle-kit studio"
   },
   "exports": "./mod.ts",
   "imports": {

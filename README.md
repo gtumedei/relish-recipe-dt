@@ -22,7 +22,7 @@
 - `modeling`\
   Simulate the evolution of recipes based on certain factors.
 - `recipe-parser`\
-  Logic to transform unstructured or semi-structured content into a well-defined recipe schema.
+  Logic to parse the unstructured or semi-structured description of a recipe into a well-defined structure.
 - `source-adapters`\
   Logic to fetch recipe data from external sources.
   - `bluesky`
