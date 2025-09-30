@@ -4,6 +4,7 @@ import { z } from "zod"
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  YOUTUBE_API_KEY: z.string().min(1),
 })
 
 const rawEnv = await load({ envPath: join(import.meta.dirname ?? "./", ".env") })

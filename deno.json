@@ -6,6 +6,12 @@
   "nodeModulesDir": "auto",
   "unstable": ["detect-cjs"],
   "imports": {
+    "dayjs": "npm:dayjs@^1.11.18",
     "dotenv-cli": "npm:dotenv-cli@^10.0.0"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any"]
+    }
   }
 }

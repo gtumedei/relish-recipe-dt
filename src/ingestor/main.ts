@@ -1,6 +1,11 @@
+import { logger } from "@relish/shared"
+
+logger.i("Hello, World!")
+
 import { db } from "@relish/database"
+const dbRes = await db.dinosaur.findMany()
+logger.i(dbRes)
 
-console.log("Hello, World!")
-
-const res = await db.dinosaur.findMany()
-console.log(res)
+// import { youtube } from "@relish/source-adapters"
+// const ytRes = await youtube.fetch()
+// logger.i(ytRes)
