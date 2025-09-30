@@ -1,13 +1,11 @@
 {
   "name": "@relish/database",
   "tasks": {
-    "push": "deno run -A --env-file=../env/.env --node-modules-dir npm:drizzle-kit push",
-    "studio": "deno run -A --env-file=../env/.env --node-modules-dir npm:drizzle-kit studio"
+    "push": "dotenv -e ../env/.env -- prisma db push",
+    "generate": "prisma generate"
   },
   "exports": "./mod.ts",
   "imports": {
-    "@libsql/client": "npm:@libsql/client@^0.15.15",
-    "drizzle-kit": "npm:drizzle-kit@^0.31.4",
-    "drizzle-orm": "npm:drizzle-orm@^0.44.5"
+    "@prisma/client": "npm:@prisma/client@^6.16.2"
   }
 }

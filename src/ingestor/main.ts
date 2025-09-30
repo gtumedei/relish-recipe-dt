@@ -1,4 +1,6 @@
 import { db } from "@relish/database"
 
 console.log("Hello, World!")
-console.log(await db.query.ExampleTable.findMany())
+
+const res = await db.dinosaur.findMany()
+console.log(res)

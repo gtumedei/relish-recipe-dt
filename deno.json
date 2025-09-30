@@ -2,5 +2,10 @@
   "tasks": {
     "start:ingest": "cd src/ingestor && deno run start"
   },
-  "workspace": ["./src/*"]
+  "workspace": ["./src/*"],
+  "nodeModulesDir": "auto",
+  "unstable": ["detect-cjs"],
+  "imports": {
+    "dotenv-cli": "npm:dotenv-cli@^10.0.0"
+  }
 }

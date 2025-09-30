@@ -1,3 +1,13 @@
-export * from "drizzle-orm"
-export * from "./schema.ts"
-export { db } from "./database.ts"
+import { env } from "@relish/env"
+
+// @deno-types="./prisma/generated/index.d.ts"
+import { PrismaClient } from "./prisma/generated/index.js"
+
+// @deno-types="./prisma/generated/index.d.ts"
+export type * from "./prisma/generated/index.js"
+
+export const db = new PrismaClient({
+  datasources: {
+    db: { url: env.DATABASE_URL },
+  },
+})
