@@ -1,0 +1,7 @@
+{
+  "name": "@relish/shared",
+  "exports": "./mod.ts",
+  "imports": {
+    "chalk": "npm:chalk@^5.6.2"
+  }
+}
