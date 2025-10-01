@@ -40,3 +40,4 @@
 - [Deno](https://deno.com/)
 - A [MongoDB](https://www.mongodb.com/) instance
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) in `PATH` to download videos from YouTube
+- [ffmpeg](https://ffmpeg.org/) and [ffprobe](https://ffmpeg.org/ffprobe.html) in `PATH` to get metadata and extract frames from videos
