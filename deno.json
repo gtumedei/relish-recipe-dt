@@ -6,8 +6,11 @@
   "nodeModulesDir": "auto",
   "unstable": ["detect-cjs"],
   "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.19",
+    "@std/path": "jsr:@std/path@^1.1.2",
     "dayjs": "npm:dayjs@^1.11.18",
-    "dotenv-cli": "npm:dotenv-cli@^10.0.0"
+    "dotenv-cli": "npm:dotenv-cli@^10.0.0",
+    "zod": "npm:zod@^4.1.11"
   },
   "lint": {
     "rules": {
