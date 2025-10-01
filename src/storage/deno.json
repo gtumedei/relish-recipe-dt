@@ -1,5 +1,5 @@
 {
-  "name": "@relish/database",
+  "name": "@relish/storage",
   "tasks": {
     "push": "dotenv -e ../env/.env -- prisma db push",
     "generate": "prisma generate"
