@@ -1,9 +1,15 @@
 import { env } from "@relish/env"
 import { evaluateRecipeLikelihood } from "@relish/recipe-processing"
-import { logger } from "@relish/shared"
+import { logger, executeCommand } from "@relish/shared"
+import { tmpDir } from "@relish/storage"
+import { join } from "@std/path"
+import dayjs from "dayjs"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
+
+// Discard videos that score lower than the recipe likelihood (1-5 scale)
+const RECIPE_LIKELIHOOD_THRESHOLD = 1
 
 type YoutubeSearchParameters = {
   key: string
@@ -44,22 +50,23 @@ type YoutubeSearchItem = {
 
 export const youtube = {
   fetch: async () => {
-    logger.i("Fetching food data from YouTube")
-    const searchParams = new URLSearchParams({
+    const params = {
       key: env.YOUTUBE_API_KEY,
       q: "food",
       part: "snippet",
       type: "video",
-      maxResults: "10",
+      maxResults: "3",
       order: "relevance",
-      publishedAfter: "2025-09-20T00:00:00Z",
-    } satisfies YoutubeSearchParameters)
-    const url = `${BASE_URL}?${searchParams.toString()}`
+      publishedAfter: dayjs().startOf("D").subtract(1, "w").toISOString(), // Fetch videos uploaded in the last week
+    } satisfies YoutubeSearchParameters
+    logger.i("Fetching food data from YouTube with the following parameters: ", params)
+    const url = `${BASE_URL}?${new URLSearchParams(params).toString()}`
     const res = await fetch(url)
     const data = (await res.json()) as YoutubeSearchResult
     logger.i(
       `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`
     )
+
     logger.i("Evaluating recipe likelihood for each video")
     const scores: (number | null)[] = []
     for (const item of data.items) {
@@ -72,7 +79,30 @@ export const youtube = {
         logger.e(`[${item.id.videoId}] Failed to compute recipe likelihood`, e)
       }
     }
-    const items = data.items.map((item, i) => ({ score: scores[i], metadata: item }))
+
+    let items = data.items.map((item, i) => ({ score: scores[i], metadata: item }))
+    const filename = join(tmpDir, "youtube-scored-results.json")
+    logger.i(`Saving results to ${filename}`)
+    await Deno.writeTextFile(filename, JSON.stringify(items, null, 2))
+
+    logger.i(`Discarding videos with likelihood less than ${RECIPE_LIKELIHOOD_THRESHOLD}/5`)
+    items = items.filter((item) => item.score !== null && item.score >= RECIPE_LIKELIHOOD_THRESHOLD)
+
+    logger.i("Downloading selected videos for further processing")
+    for (const item of items) {
+      logger.i(`[${item.metadata.id.videoId}] Downloading...`)
+      const { success, stdout, stderr } = await executeCommand(
+        "yt-dlp",
+        `https://youtube.com/watch?v=${item.metadata.id.videoId}`,
+        "-o",
+        `${tmpDir}/${item.metadata.id.videoId}.%(ext)s`
+      )
+      if (!success) {
+        logger.e(`${item.metadata.id.videoId} Error when downloading the video.`)
+        logger.e(stdout)
+        logger.e(stderr)
+      }
+    }
     return items
   },
 }

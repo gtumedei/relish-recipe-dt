@@ -359,11 +359,6 @@
       "npm:zod@^4.1.11"
     ],
     "members": {
-      "src/database": {
-        "dependencies": [
-          "npm:@prisma/client@^6.16.2"
-        ]
-      },
       "src/env": {
         "dependencies": [
           "jsr:@std/dotenv@~0.225.5",
@@ -380,6 +375,11 @@
       "src/shared": {
         "dependencies": [
           "npm:chalk@^5.6.2"
+        ]
+      },
+      "src/storage": {
+        "dependencies": [
+          "npm:@prisma/client@^6.16.2"
         ]
       }
     }
