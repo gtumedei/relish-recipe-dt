@@ -9,8 +9,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Dinosaur {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  name        String @unique
+model Dish {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
   description String
+  recipes     Recipe[]
+  media       Media[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Recipe {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  dishId        String
+  dish          Dish            @relation(fields: [dishId], references: [id])
+  ingredients   IngredientRef[]
+  tools         ToolRef[]
+  steps         Step[]
+  totalPrepTime Int // Seconds
+  media         Media[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+type IngredientRef {
+  ingredientId String @db.ObjectId // TODO: relations in composite fields are not supported. Make sure this works well when querying the db
+  quantity     Int
+  unit         String
+}
+
+model Ingredient {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  media     Media[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+type Step {
+  description String
+  ingredients IngredientRef[]
+  tools       ToolRef[]
+  time        Int
+}
+
+model Tool {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  media     Media[]
+  createdAt DateTime @default(now())
+}
+
+type ToolRef {
+  tool         String   @db.ObjectId
+  alternatives String[] @db.ObjectId
+}
+
+type Media {
+  url         String
+  description String?
+  createdAt   DateTime @default(now())
 }
