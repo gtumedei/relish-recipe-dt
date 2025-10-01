@@ -1,9 +1,16 @@
 import { env } from "@relish/env"
 import { evaluateRecipeLikelihood } from "@relish/recipe-processing"
-import { logger, executeCommand } from "@relish/shared"
+import {
+  logger,
+  executeCommand,
+  extractFramesFromVideo,
+  getVideoDuration,
+  CommandError,
+} from "@relish/shared"
 import { tmpDir } from "@relish/storage"
 import { join } from "@std/path"
 import dayjs from "dayjs"
+import { ensureDir } from "@std/fs"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
@@ -90,18 +97,56 @@ export const youtube = {
 
     logger.i("Downloading selected videos for further processing")
     for (const item of items) {
-      logger.i(`[${item.metadata.id.videoId}] Downloading...`)
-      const { success, stdout, stderr } = await executeCommand(
-        "yt-dlp",
-        `https://youtube.com/watch?v=${item.metadata.id.videoId}`,
-        "-o",
-        `${tmpDir}/${item.metadata.id.videoId}.%(ext)s`
-      )
-      if (!success) {
-        logger.e(`${item.metadata.id.videoId} Error when downloading the video.`)
-        logger.e(stdout)
-        logger.e(stderr)
+      logger.i(`[${item.metadata.id.videoId}] Downloading video...`)
+      const videoDir = join(tmpDir, item.metadata.id.videoId)
+      try {
+        await executeCommand(
+          "yt-dlp",
+          `https://youtube.com/watch?v=${item.metadata.id.videoId}`,
+          "-o",
+          `${videoDir}/${item.metadata.id.videoId}.%(ext)s`
+        )
+      } catch (e) {
+        logger.e(`${item.metadata.id.videoId} An error occurred while downloading the video`)
+        if (e instanceof CommandError) {
+          logger.e(e.stdout)
+          logger.e(e.stderr)
+        } else {
+          logger.e(e)
+        }
+        continue
       }
+      const videoFile = Array.from(Deno.readDirSync(videoDir)).find(
+        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+      )
+      const videoPath = videoFile ? join(videoDir, videoFile.name) : null
+      if (!videoPath) {
+        logger.e(`${item.metadata.id.videoId} Unable to retrieve the path of the downloaded video`)
+        continue
+      }
+      logger.i(`[${item.metadata.id.videoId}] Getting video metadata`)
+      const duration = await getVideoDuration(videoPath)
+      logger.i(`[${item.metadata.id.videoId}] Extracting frames (${Math.floor(duration ?? 0)})...`)
+      const framesDir = join(videoDir, "frames")
+      await ensureDir(framesDir)
+      try {
+        await extractFramesFromVideo({
+          videoPath,
+          outDir: join(videoDir, "frames"),
+          fps: 1,
+        })
+      } catch (e) {
+        logger.e(`${item.metadata.id.videoId} An error occurred while extracting the video frames`)
+        if (e instanceof CommandError) {
+          logger.e(e.stdout)
+          logger.e(e.stderr)
+        } else {
+          logger.e(e)
+        }
+        continue
+      }
+      // TODO: try transcribing audio with OpenAI Whisper: https://ai-sdk.dev/docs/ai-sdk-core/transcription
+      // TODO: try describing video by extracting frames (ffmpeg) and providing them as images
     }
     return items
   },
