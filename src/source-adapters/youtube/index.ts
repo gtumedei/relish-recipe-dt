@@ -99,10 +99,11 @@ export const youtube = {
     for (const item of items) {
       logger.i(`[${item.metadata.id.videoId}] Downloading video...`)
       const videoDir = join(tmpDir, item.metadata.id.videoId)
+      const videoUrl = `https://youtube.com/watch?v=${item.metadata.id.videoId}`
       try {
         await executeCommand(
           "yt-dlp",
-          `https://youtube.com/watch?v=${item.metadata.id.videoId}`,
+          videoUrl,
           "-o",
           `${videoDir}/${item.metadata.id.videoId}.%(ext)s`
         )
@@ -124,8 +125,10 @@ export const youtube = {
         logger.e(`${item.metadata.id.videoId} Unable to retrieve the path of the downloaded video`)
         continue
       }
+
       logger.i(`[${item.metadata.id.videoId}] Getting video metadata`)
       const duration = await getVideoDuration(videoPath)
+
       logger.i(`[${item.metadata.id.videoId}] Extracting frames (${Math.floor(duration ?? 0)})...`)
       const framesDir = join(videoDir, "frames")
       await ensureDir(framesDir)
@@ -145,6 +148,28 @@ export const youtube = {
         }
         continue
       }
+
+      // TODO: download video caption as text - see https://github.com/yt-dlp/yt-dlp/issues/7496
+      const videoCaptionsDir = join(videoDir, "captions")
+      const captionsRes = await executeCommand(
+        "yt-dlp",
+        "--write-auto-sub",
+        "--write-sub",
+        "--sub-lang",
+        "en,original",
+        "--skip-download",
+        "-P",
+        videoCaptionsDir,
+        videoUrl
+      )
+      console.log(captionsRes)
+      const captionsFile = Array.from(Deno.readDirSync(videoCaptionsDir)).find(
+        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+      )
+      const captionsPath = captionsFile ? join(videoCaptionsDir, captionsFile.name) : null
+      console.log(captionsPath)
+      // TODO: process caption files to simplify their content
+
       // TODO: try transcribing audio with OpenAI Whisper: https://ai-sdk.dev/docs/ai-sdk-core/transcription
       // TODO: try describing video by extracting frames (ffmpeg) and providing them as images
     }
