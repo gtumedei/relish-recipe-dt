@@ -1,4 +1,4 @@
-import c from "chalk"
+import * as c from "@std/fmt/colors"
 
 type LogFunction = typeof console.log
 

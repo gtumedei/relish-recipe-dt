@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "start": "deno run -A main.ts",
+    "bundle": "deno bundle --output dist/deno-cli-template.js main.ts",
+    "compile": "deno compile --output bin/deno-cli-template main.ts"
+  },
+  "imports": {
+    "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
+    "@std/cli": "jsr:@std/cli@^1.0.22",
+    "~/": "./"
+  }
+}

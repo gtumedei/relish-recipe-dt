@@ -1,7 +1,7 @@
 import "@relish/env"
 
-import { logger } from "@relish/shared"
 import { youtube } from "@relish/source-adapters"
+import { logger } from "@relish/utils"
 
 const ytRes = await youtube.fetch()
 logger.i(ytRes)

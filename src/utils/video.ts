@@ -1,5 +1,6 @@
-import { executeCommand } from "./command.ts"
+import { ensureDir } from "@std/fs"
 import { z } from "zod"
+import { executeCommand } from "./command.ts"
 
 const FfprobeDurationSchema = z.object({
   format: z.object({
@@ -25,8 +26,13 @@ export const getVideoDuration = async (videoPath: string) => {
   }
 }
 
-export const extractFramesFromVideo = (args: { videoPath: string; outDir: string; fps: number }) =>
-  executeCommand(
+export const extractFramesFromVideo = async (args: {
+  videoPath: string
+  outDir: string
+  fps: number
+}) => {
+  await ensureDir(args.outDir)
+  return await executeCommand(
     "ffmpeg",
     "-i",
     args.videoPath,
@@ -34,3 +40,4 @@ export const extractFramesFromVideo = (args: { videoPath: string; outDir: string
     `fps=${args.fps}`,
     `${args.outDir}/frame-%04d.png`
   )
+}
