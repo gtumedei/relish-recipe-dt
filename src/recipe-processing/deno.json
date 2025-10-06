@@ -1,8 +1,4 @@
 {
   "name": "@relish/recipe-processing",
-  "exports": "./mod.ts",
-  "imports": {
-    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.17",
-    "ai": "npm:ai@^5.0.59"
-  }
+  "exports": "./mod.ts"
 }

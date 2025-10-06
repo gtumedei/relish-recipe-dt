@@ -41,3 +41,7 @@ export const extractFramesFromVideo = async (args: {
     `${args.outDir}/frame-%04d.png`
   )
 }
+
+export const transcribeAudio = () => {}
+
+export const transcribeVideoFrames = () => {}

@@ -1,7 +1,7 @@
 import { Command } from "@cliffy/command"
-import { getVideoDuration, extractFramesFromVideo } from "@relish/utils"
-import * as c from "@std/fmt/colors"
+import { extractFramesFromVideo, getVideoDuration } from "@relish/utils"
 import { Spinner } from "@std/cli/unstable-spinner"
+import * as c from "@std/fmt/colors"
 
 const getVideoDurationCommand = new Command()
   .name("get-video-duration")

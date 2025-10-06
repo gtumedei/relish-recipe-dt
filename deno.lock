@@ -397,6 +397,8 @@
       "jsr:@std/fmt@^1.0.8",
       "jsr:@std/fs@^1.0.19",
       "jsr:@std/path@^1.1.2",
+      "npm:@ai-sdk/google@^2.0.17",
+      "npm:ai@^5.0.59",
       "npm:dayjs@^1.11.18",
       "npm:dotenv-cli@10",
       "npm:zod@^4.1.11"
@@ -413,12 +415,6 @@
           "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/path@^1.1.2",
           "npm:zod@^4.1.9"
-        ]
-      },
-      "src/recipe-processing": {
-        "dependencies": [
-          "npm:@ai-sdk/google@^2.0.17",
-          "npm:ai@^5.0.59"
         ]
       },
       "src/storage": {

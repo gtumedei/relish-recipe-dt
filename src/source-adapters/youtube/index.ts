@@ -9,7 +9,7 @@ import {
   logger,
 } from "@relish/utils"
 import { ensureDir } from "@std/fs"
-import { join } from "@std/path"
+import { dirname, join } from "@std/path"
 import dayjs from "dayjs"
 
 // https://developers.google.com/youtube/v3/docs/search/list
@@ -56,20 +56,8 @@ type YoutubeSearchItem = {
 }
 
 export const youtube = {
-  fetch: async () => {
-    const params = {
-      key: env.YOUTUBE_API_KEY,
-      q: "food",
-      part: "snippet",
-      type: "video",
-      maxResults: "3",
-      order: "relevance",
-      publishedAfter: dayjs().startOf("D").subtract(1, "w").toISOString(), // Fetch videos uploaded in the last week
-    } satisfies YoutubeSearchParameters
-    logger.i("Fetching food data from YouTube with the following parameters: ", params)
-    const url = `${BASE_URL}?${new URLSearchParams(params).toString()}`
-    const res = await fetch(url)
-    const data = (await res.json()) as YoutubeSearchResult
+  pipeline: async () => {
+    const data = await youtube.list({ q: "food" })
     logger.i(
       `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`
     )
@@ -98,33 +86,12 @@ export const youtube = {
     logger.i("Downloading selected videos for further processing")
     for (const item of items) {
       logger.i(`[${item.metadata.id.videoId}] Downloading video...`)
-      const videoDir = join(tmpDir, item.metadata.id.videoId)
       const videoUrl = `https://youtube.com/watch?v=${item.metadata.id.videoId}`
-      try {
-        await executeCommand(
-          "yt-dlp",
-          videoUrl,
-          "-o",
-          `${videoDir}/${item.metadata.id.videoId}.%(ext)s`
-        )
-      } catch (e) {
-        logger.e(`${item.metadata.id.videoId} An error occurred while downloading the video`)
-        if (e instanceof CommandError) {
-          logger.e(e.stdout)
-          logger.e(e.stderr)
-        } else {
-          logger.e(e)
-        }
-        continue
-      }
-      const videoFile = Array.from(Deno.readDirSync(videoDir)).find(
-        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
-      )
-      const videoPath = videoFile ? join(videoDir, videoFile.name) : null
-      if (!videoPath) {
-        logger.e(`${item.metadata.id.videoId} Unable to retrieve the path of the downloaded video`)
-        continue
-      }
+      const videoDir = join(tmpDir, item.metadata.id.videoId)
+      const { videoPath } = await youtube.download({
+        url: videoUrl,
+        outPath: `${videoDir}/${item.metadata.id.videoId}.%(ext)s`,
+      })
 
       logger.i(`[${item.metadata.id.videoId}] Getting video metadata`)
       const duration = await getVideoDuration(videoPath)
@@ -174,5 +141,54 @@ export const youtube = {
       // TODO: try describing video by extracting frames (ffmpeg) and providing them as images
     }
     return items
+  },
+
+  list: async (params: Pick<YoutubeSearchParameters, "q"> & Partial<YoutubeSearchParameters>) => {
+    const defaultParams = {
+      key: env.YOUTUBE_API_KEY,
+      q: "food",
+      part: "snippet",
+      type: "video",
+      maxResults: "3",
+      order: "relevance",
+      publishedAfter: dayjs().startOf("D").subtract(1, "w").toISOString(), // Fetch videos uploaded in the last week
+    } satisfies YoutubeSearchParameters
+    const allParams = { ...defaultParams, ...params }
+    logger.i("Fetching food data from YouTube with the following parameters: ", allParams)
+    const url = `${BASE_URL}?${new URLSearchParams(allParams).toString()}`
+    const res = await fetch(url)
+    const data = (await res.json()) as YoutubeSearchResult
+    return data
+  },
+
+  download: async (params: { url: string; outPath: string; withCaptions?: boolean }) => {
+    const videoDir = dirname(params.outPath)
+    await executeCommand("yt-dlp", params.url, "-o", params.outPath)
+    const videoFile = Array.from(Deno.readDirSync(videoDir)).find(
+      (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+    )
+    const videoPath = videoFile ? join(videoDir, videoFile.name) : null
+    if (!videoPath) throw new Error("Unable to retrieve the path of the downloaded video")
+    let captionsPath: string | null = null
+    if (params.withCaptions) {
+      const videoCaptionsDir = join(videoDir, "captions")
+      const captionsRes = await executeCommand(
+        "yt-dlp",
+        "--write-auto-sub",
+        "--write-sub",
+        "--sub-lang",
+        "en,original",
+        "--skip-download",
+        "-P",
+        videoCaptionsDir,
+        params.url
+      )
+      console.log(captionsRes)
+      const captionsFile = Array.from(Deno.readDirSync(videoCaptionsDir)).find(
+        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+      )
+      captionsPath = captionsFile ? join(videoCaptionsDir, captionsFile.name) : null
+    }
+    return { videoPath, captionsPath }
   },
 }
