@@ -33,9 +33,9 @@ model Recipe {
 }
 
 type IngredientRef {
-  ingredientId String @db.ObjectId // TODO: relations in composite fields are not supported. Make sure this works well when querying the db
-  quantity     Int
-  unit         String
+  ingredientOrDishId String @db.ObjectId // TODO: relations in composite fields are not supported. Make sure this works well when querying the db
+  quantity           Int
+  unit               String
 }
 
 model Ingredient {
@@ -67,6 +67,14 @@ type ToolRef {
 
 type Media {
   url         String
+  type        MediaType
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
 }

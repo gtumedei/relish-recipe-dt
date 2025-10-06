@@ -1,8 +1,8 @@
 {
   "name": "@relish/storage",
   "tasks": {
-    "push": "dotenv -e ../env/.env -- prisma db push",
-    "generate": "prisma generate"
+    "db:push": "dotenv -e ../env/.env -- prisma db push",
+    "db:generate": "prisma generate"
   },
   "exports": "./mod.ts",
   "imports": {
