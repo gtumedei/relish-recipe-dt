@@ -3,13 +3,15 @@ import { evaluateRecipeLikelihood } from "@relish/recipe-processing"
 import { tmpDir } from "@relish/storage"
 import {
   CommandError,
+  describeVideoFrames,
   executeCommand,
+  extractAudioFromVideo,
   extractFramesFromVideo,
   getVideoDuration,
   logger,
+  transcribeAudio,
   vttToJson,
 } from "@relish/utils"
-import { ensureDir } from "@std/fs"
 import { join } from "@std/path"
 import dayjs from "dayjs"
 
@@ -58,7 +60,7 @@ type YoutubeSearchItem = {
 
 export const youtube = {
   pipeline: async () => {
-    const data = await youtube.list({ q: "food" })
+    const data = await youtube.list({ q: "food", maxResults: "1" })
     logger.i(
       `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`
     )
@@ -99,12 +101,9 @@ export const youtube = {
       const duration = await getVideoDuration(videoPath)
 
       logger.i(`[${item.metadata.id.videoId}] Extracting frames (${Math.floor(duration ?? 0)})...`)
+      const framesDir = join(videoDir, "frames")
       try {
-        await extractFramesFromVideo({
-          videoPath,
-          outDir: join(videoDir, "frames"),
-          fps: 1,
-        })
+        await extractFramesFromVideo({ videoPath, outDir: framesDir, fps: 1 })
       } catch (e) {
         logger.e(`${item.metadata.id.videoId} An error occurred while extracting the video frames`)
         if (e instanceof CommandError) {
@@ -116,8 +115,25 @@ export const youtube = {
         continue
       }
 
-      // TODO: try transcribing audio with OpenAI Whisper: https://ai-sdk.dev/docs/ai-sdk-core/transcription
-      // TODO: try describing video by extracting frames (ffmpeg) and providing them as images
+      logger.i(`[${item.metadata.id.videoId}] Extracting audio track...`)
+      const audioPath = join(videoDir, "audio.mp3")
+      await extractAudioFromVideo({ inputVideoPath: videoPath, outputAudioPath: audioPath })
+      logger.i(`[${item.metadata.id.videoId}] Transcribing audio track...`)
+      const { segments } = await transcribeAudio(audioPath)
+      const transcriptionPath = join(videoDir, "transcription.json")
+      await Deno.writeTextFile(transcriptionPath, JSON.stringify(segments, null, 2))
+
+      logger.i(`[${item.metadata.id.videoId}] Describing video...`)
+      // TODO: describe video
+      const description = await describeVideoFrames({ framesDir })
+      const descriptionPath = join(videoDir, "description.json")
+      await Deno.writeTextFile(descriptionPath, JSON.stringify(description, null, 2))
+
+      logger.i(`[${item.metadata.id.videoId}] Putting it all together...`)
+      console.log(captionsPath)
+      console.log(transcriptionPath)
+      console.log(descriptionPath)
+      // TODO: combine all the parts
     }
     return items
   },

@@ -48,6 +48,14 @@ const downloadVideoCommand = new Command()
     if (captions) console.log(`  Captions saved to ${res.captionsPath}`)
   })
 
+const pipelineCommand = new Command()
+  .name("pipeline")
+  .description("Run the full YouTube video pipeline.")
+  .action(async () => {
+    await youtube.pipeline()
+    console.log(`${c.green("✓")} Done`)
+  })
+
 const youtubeCommand = new Command()
   .name("youtube")
   .description("Download food content from YouTube.")
@@ -56,6 +64,7 @@ const youtubeCommand = new Command()
   })
   .command(listVideosCommand.getName(), listVideosCommand)
   .command(downloadVideoCommand.getName(), downloadVideoCommand)
+  .command(pipelineCommand.getName(), pipelineCommand)
 
 export const sourceAdaptersCommand = new Command()
   .name("source-adapters")

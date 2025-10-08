@@ -14,7 +14,7 @@ export class CommandError extends Error {
   stderr?: string
 
   constructor(params: { code: number; stdout?: string; stderr?: string }) {
-    super("Command completed with errors")
+    super(`Command completed with errors\n\n${params.stderr}`)
     this.code = params.code
     this.stdout = params.stdout
     this.stderr = params.stderr

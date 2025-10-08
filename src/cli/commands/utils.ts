@@ -1,5 +1,7 @@
 import { Command } from "@cliffy/command"
 import {
+  describeVideo,
+  describeVideoFrames,
   extractAudioFromVideo,
   extractFramesFromVideo,
   getVideoDuration,
@@ -45,7 +47,7 @@ const extractVideoFramesCommand = new Command()
 const transcribeAudioCommand = new Command()
   .name("transcribe-audio")
   .description("Transcribe an audio track.")
-  .option("--outtext <value:string>", "Path to save the output transcription as plain text.")
+  .option("--outtext <value:string>", "Path to save the output transcription as plaintext.")
   .option(
     "--outjson <value:string>",
     "Path to save the output transcription as JSON with timestamps."
@@ -68,6 +70,55 @@ const transcribeAudioCommand = new Command()
     console.log(`${c.green("✓")} Done`)
   })
 
+const describeVideoFramesCommand = new Command()
+  .name("describe-frames")
+  .description(
+    "Describe a video based on its frames. The framesdir argument must point to a directory containing one image for each frame, with the name frame-XXXX.png, where XXXX is the second corresponding to the frame."
+  )
+  .option(
+    "-o --outfile <value:string>",
+    "Path to save the output description as JSON with timestamps."
+  )
+  .arguments("<framesdir:string>")
+  .action(async ({ outfile }, framesDir) => {
+    const spinner = new Spinner({ message: "Describing video...", color: "blue" })
+    spinner.start()
+    const res = await describeVideoFrames({ framesDir })
+    spinner.stop()
+    if (outfile) {
+      await Deno.writeTextFile(outfile, JSON.stringify(res, null, 2))
+      console.log(`${c.green("✓")} Results saved to ${outfile}`)
+    } else {
+      console.dir(res)
+      console.log(`${c.green("✓")} Done`)
+    }
+  })
+
+const describeVideoCommand = new Command()
+  .name("describe-video")
+  .description(
+    "Produce an accurate video description based on its captions, audio transcription and visual frames description."
+  )
+  .option("-o --outfile <value:string>", "Path to save the output description as plaintext.")
+  .arguments("<captions-file:string> <transcription-file:string> <description-file:string>")
+  .action(async ({ outfile }, captionsFile, transcriptionFile, descriptionFile) => {
+    const spinner = new Spinner({ message: "Describing video...", color: "blue" })
+    spinner.start()
+    const description = await describeVideo({
+      captions: await Deno.readTextFile(captionsFile),
+      transcription: await Deno.readTextFile(transcriptionFile),
+      description: await Deno.readTextFile(descriptionFile),
+    })
+    spinner.stop()
+    if (outfile) {
+      await Deno.writeTextFile(outfile, description)
+      console.log(`${c.green("✓")} Results saved to ${outfile}`)
+    } else {
+      console.dir(description)
+      console.log(`${c.green("✓")} Done`)
+    }
+  })
+
 export const utilsCommand = new Command()
   .name("utils")
   .description("Various utility functions.")
@@ -78,3 +129,5 @@ export const utilsCommand = new Command()
   .command(extractAudioFromVideoCommand.getName(), extractAudioFromVideoCommand)
   .command(extractVideoFramesCommand.getName(), extractVideoFramesCommand)
   .command(transcribeAudioCommand.getName(), transcribeAudioCommand)
+  .command(describeVideoFramesCommand.getName(), describeVideoFramesCommand)
+  .command(describeVideoCommand.getName(), describeVideoCommand)
