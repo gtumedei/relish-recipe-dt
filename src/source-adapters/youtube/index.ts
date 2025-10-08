@@ -89,17 +89,16 @@ export const youtube = {
       logger.i(`[${item.metadata.id.videoId}] Downloading video...`)
       const videoUrl = `https://youtube.com/watch?v=${item.metadata.id.videoId}`
       const videoDir = join(tmpDir, item.metadata.id.videoId)
-      const { videoPath } = await youtube.download({
+      const { videoPath, captionsPath } = await youtube.download({
         url: videoUrl,
         outDir: videoDir,
+        withCaptions: true,
       })
 
       logger.i(`[${item.metadata.id.videoId}] Getting video metadata`)
       const duration = await getVideoDuration(videoPath)
 
       logger.i(`[${item.metadata.id.videoId}] Extracting frames (${Math.floor(duration ?? 0)})...`)
-      const framesDir = join(videoDir, "frames")
-      await ensureDir(framesDir)
       try {
         await extractFramesFromVideo({
           videoPath,
@@ -116,27 +115,6 @@ export const youtube = {
         }
         continue
       }
-
-      // TODO: download video caption as text - see https://github.com/yt-dlp/yt-dlp/issues/7496
-      const videoCaptionsDir = join(videoDir, "captions")
-      const captionsRes = await executeCommand(
-        "yt-dlp",
-        "--write-auto-sub",
-        "--write-sub",
-        "--sub-lang",
-        "en,original",
-        "--skip-download",
-        "-P",
-        videoCaptionsDir,
-        videoUrl
-      )
-      console.log(captionsRes)
-      const captionsFile = Array.from(Deno.readDirSync(videoCaptionsDir)).find(
-        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
-      )
-      const captionsPath = captionsFile ? join(videoCaptionsDir, captionsFile.name) : null
-      console.log(captionsPath)
-      // TODO: process caption files to simplify their content
 
       // TODO: try transcribing audio with OpenAI Whisper: https://ai-sdk.dev/docs/ai-sdk-core/transcription
       // TODO: try describing video by extracting frames (ffmpeg) and providing them as images

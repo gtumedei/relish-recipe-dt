@@ -5,6 +5,7 @@ import { z } from "zod"
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   YOUTUBE_API_KEY: z.string().min(1),
+  OPENAI_API_KEY: z.string().min(1),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
 })
 

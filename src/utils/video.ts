@@ -1,6 +1,8 @@
 import { ensureDir } from "@std/fs"
 import { z } from "zod"
 import { executeCommand } from "./command.ts"
+import { openai } from "@ai-sdk/openai"
+import { experimental_transcribe as transcribe } from "ai"
 
 const FfprobeDurationSchema = z.object({
   format: z.object({
@@ -24,6 +26,23 @@ export const getVideoDuration = async (videoPath: string) => {
   } catch {
     return null
   }
+}
+
+export const extractAudioFromVideo = async (args: {
+  inputVideoPath: string
+  outputAudioPath: string
+}) => {
+  "ffmpeg -i input_video.mp4 -q:a 0 -map a output_audio.mp3"
+  return await executeCommand(
+    "ffmpeg",
+    "-i",
+    args.inputVideoPath,
+    "-q:a",
+    "0",
+    "-map",
+    "a",
+    args.outputAudioPath
+  )
 }
 
 export const extractFramesFromVideo = async (args: {
@@ -84,6 +103,20 @@ export const vttToJson = (vtt: string) => {
   return result
 }
 
-export const transcribeAudio = () => {}
+const transcriptionModel = openai.transcription("whisper-1")
+
+export const transcribeAudio = async (audioPath: string) => {
+  const { text, segments } = await transcribe({
+    model: transcriptionModel,
+    audio: await Deno.readFile(audioPath),
+    providerOptions: {
+      openai: {
+        responseFormat: "verbose_json",
+        timestampGranularities: ["segment"],
+      },
+    },
+  })
+  return { text, segments }
+}
 
 export const transcribeVideoFrames = () => {}
