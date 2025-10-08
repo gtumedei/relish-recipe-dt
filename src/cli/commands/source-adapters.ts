@@ -34,13 +34,13 @@ const downloadVideoCommand = new Command()
   .name("download")
   .description("Download a video from YouTube.")
   .option("-c, --captions", "Download and save captions.")
-  .arguments("<videoUrl:string> <videoPath:string>")
-  .action(async ({ captions }, videoUrl, videoPath) => {
+  .arguments("<videoUrl:string> <outDir:string>")
+  .action(async ({ captions }, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
     const res = await youtube.download({
       url: videoUrl,
-      outPath: videoPath,
+      outDir,
       withCaptions: captions,
     })
     spinner.stop()

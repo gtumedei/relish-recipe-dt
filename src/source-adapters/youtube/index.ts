@@ -7,9 +7,10 @@ import {
   extractFramesFromVideo,
   getVideoDuration,
   logger,
+  vttToJson,
 } from "@relish/utils"
 import { ensureDir } from "@std/fs"
-import { dirname, join } from "@std/path"
+import { join } from "@std/path"
 import dayjs from "dayjs"
 
 // https://developers.google.com/youtube/v3/docs/search/list
@@ -90,7 +91,7 @@ export const youtube = {
       const videoDir = join(tmpDir, item.metadata.id.videoId)
       const { videoPath } = await youtube.download({
         url: videoUrl,
-        outPath: `${videoDir}/${item.metadata.id.videoId}.%(ext)s`,
+        outDir: videoDir,
       })
 
       logger.i(`[${item.metadata.id.videoId}] Getting video metadata`)
@@ -161,18 +162,20 @@ export const youtube = {
     return data
   },
 
-  download: async (params: { url: string; outPath: string; withCaptions?: boolean }) => {
-    const videoDir = dirname(params.outPath)
-    await executeCommand("yt-dlp", params.url, "-o", params.outPath)
-    const videoFile = Array.from(Deno.readDirSync(videoDir)).find(
+  download: async (params: { url: string; outDir: string; withCaptions?: boolean }) => {
+    const videoPathWithGenericExtension = join(params.outDir, "video.%(ext)s")
+    // Download video
+    await executeCommand("yt-dlp", params.url, "-o", videoPathWithGenericExtension)
+    // Retrieve downloaded file path
+    const videoFile = Array.from(Deno.readDirSync(params.outDir)).find(
       (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
     )
-    const videoPath = videoFile ? join(videoDir, videoFile.name) : null
+    const videoPath = videoFile ? join(params.outDir, videoFile.name) : null
     if (!videoPath) throw new Error("Unable to retrieve the path of the downloaded video")
+    // Download captions and retrieve file path if requested
     let captionsPath: string | null = null
     if (params.withCaptions) {
-      const videoCaptionsDir = join(videoDir, "captions")
-      const captionsRes = await executeCommand(
+      await executeCommand(
         "yt-dlp",
         "--write-auto-sub",
         "--write-sub",
@@ -180,14 +183,22 @@ export const youtube = {
         "en,original",
         "--skip-download",
         "-P",
-        videoCaptionsDir,
+        params.outDir,
         params.url
       )
-      console.log(captionsRes)
-      const captionsFile = Array.from(Deno.readDirSync(videoCaptionsDir)).find(
-        (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+      const captionsFile = Array.from(Deno.readDirSync(params.outDir)).find(
+        (f) => f.isFile && /\.(vtt)$/i.test(f.name)
       )
-      captionsPath = captionsFile ? join(videoCaptionsDir, captionsFile.name) : null
+      // TODO: format captions
+      captionsPath = captionsFile ? join(params.outDir, captionsFile.name) : null
+      if (captionsPath) {
+        const captions = await Deno.readTextFile(captionsPath)
+        const formattedCaptions = vttToJson(captions)
+        await Deno.writeTextFile(
+          join(params.outDir, "captions.json"),
+          JSON.stringify(formattedCaptions, null, 2)
+        )
+      }
     }
     return { videoPath, captionsPath }
   },
