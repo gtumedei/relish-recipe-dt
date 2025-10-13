@@ -6,12 +6,12 @@ import {
   extractFramesFromVideo,
   getVideoDuration,
   transcribeAudio,
-} from "@relish/utils"
+} from "@relish/utils/video"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
 
 const getVideoDurationCommand = new Command()
-  .name("get-video-duration")
+  .name("get-duration")
   .description("Get the duration of a video given its path.")
   .arguments("<path:string>")
   .action(async (_, path) => {
@@ -32,7 +32,7 @@ const extractAudioFromVideoCommand = new Command()
   })
 
 const extractVideoFramesCommand = new Command()
-  .name("extract-video-frames")
+  .name("extract-frames")
   .description("Extract and save the frames of a video.")
   .option("--fps <value:number>", "How many frames per second to extract.", { default: 1 })
   .arguments("<video-path:string> <outdir:string>")
@@ -112,18 +112,18 @@ const describeVideoCommand = new Command()
     spinner.stop()
     if (outfile) {
       await Deno.writeTextFile(outfile, description)
-      console.log(`${c.green("✓")} Results saved to ${outfile}`)
+      console.log(`${c.green("✓")} Result saved to ${outfile}`)
     } else {
       console.dir(description)
       console.log(`${c.green("✓")} Done`)
     }
   })
 
-export const utilsCommand = new Command()
-  .name("utils")
-  .description("Various utility functions.")
+const videoCommand = new Command()
+  .name("video")
+  .description("Utilities to work with videos.")
   .action(() => {
-    console.log(utilsCommand.getHelp())
+    console.log(videoCommand.getHelp())
   })
   .command(getVideoDurationCommand.getName(), getVideoDurationCommand)
   .command(extractAudioFromVideoCommand.getName(), extractAudioFromVideoCommand)
@@ -131,3 +131,11 @@ export const utilsCommand = new Command()
   .command(transcribeAudioCommand.getName(), transcribeAudioCommand)
   .command(describeVideoFramesCommand.getName(), describeVideoFramesCommand)
   .command(describeVideoCommand.getName(), describeVideoCommand)
+
+export const utilsCommand = new Command()
+  .name("utils")
+  .description("Various utility functions.")
+  .action(() => {
+    console.log(utilsCommand.getHelp())
+  })
+  .command(videoCommand.getName(), videoCommand)

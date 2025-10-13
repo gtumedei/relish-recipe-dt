@@ -1,10 +1,10 @@
 import { Command, EnumType } from "@cliffy/command"
+import { youtube } from "@relish/source-adapters/youtube"
 import { Spinner } from "@std/cli/unstable-spinner"
-import { youtube } from "@relish/source-adapters"
 import * as c from "@std/fmt/colors"
 
-const listVideosCommand = new Command()
-  .name("list")
+const findVideosCommand = new Command()
+  .name("find")
   .description("Get a list of videos from YouTube APIs based on a set of criteria.")
   .option("-m, --max-results <value:string>", "The number of videos to return.", { default: "10" })
   .type("order", new EnumType(["date", "rating", "relevance", "title", "viewCount"]))
@@ -19,7 +19,7 @@ const listVideosCommand = new Command()
   .action(async ({ outfile, ...youtubeParams }, query) => {
     const spinner = new Spinner({ message: "Fetching video list...", color: "blue" })
     spinner.start()
-    const res = await youtube.list({ q: query, ...youtubeParams })
+    const res = await youtube.findVideos({ q: query, ...youtubeParams })
     spinner.stop()
     if (outfile) {
       await Deno.writeTextFile(outfile, JSON.stringify(res, null, 2))
@@ -34,11 +34,11 @@ const downloadVideoCommand = new Command()
   .name("download")
   .description("Download a video from YouTube.")
   .option("-c, --captions", "Download and save captions.")
-  .arguments("<videoUrl:string> <outDir:string>")
+  .arguments("<video-url:string> <out-dir:string>")
   .action(async ({ captions }, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
-    const res = await youtube.download({
+    const res = await youtube.downloadVideo({
       url: videoUrl,
       outDir,
       withCaptions: captions,
@@ -48,11 +48,20 @@ const downloadVideoCommand = new Command()
     if (captions) console.log(`  Captions saved to ${res.captionsPath}`)
   })
 
-const pipelineCommand = new Command()
-  .name("pipeline")
+const fullPipelineCommand = new Command()
+  .name("full-pipeline")
   .description("Run the full YouTube video pipeline.")
   .action(async () => {
-    await youtube.pipeline()
+    await youtube.executeFullPipeline()
+    console.log(`${c.green("✓")} Done`)
+  })
+
+const videoPipelineCommand = new Command()
+  .name("video-pipeline")
+  .description("Run the YouTube pipeline for a single video.")
+  .arguments("<video-id:string>")
+  .action(async (_, videoId) => {
+    await youtube.executeVideoPipeline({ videoId })
     console.log(`${c.green("✓")} Done`)
   })
 
@@ -62,9 +71,10 @@ const youtubeCommand = new Command()
   .action(() => {
     console.log(youtubeCommand.getHelp())
   })
-  .command(listVideosCommand.getName(), listVideosCommand)
+  .command(findVideosCommand.getName(), findVideosCommand)
   .command(downloadVideoCommand.getName(), downloadVideoCommand)
-  .command(pipelineCommand.getName(), pipelineCommand)
+  .command(fullPipelineCommand.getName(), fullPipelineCommand)
+  .command(videoPipelineCommand.getName(), videoPipelineCommand)
 
 export const sourceAdaptersCommand = new Command()
   .name("source-adapters")

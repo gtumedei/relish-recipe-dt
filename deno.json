@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "start:ingest": "cd src/ingestor && deno run start"
+    "start:cli": "cd src/cli && deno run start"
   },
   "workspace": ["./src/*"],
   "nodeModulesDir": "auto",

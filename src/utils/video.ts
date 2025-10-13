@@ -76,7 +76,7 @@ export const extractFramesFromVideo = async (args: {
     const size =
       metadata.width < 1080
         ? { width: metadata.width, height: metadata.height }
-        : { width: 1080, height: (metadata.height * 1080) / metadata.width }
+        : { width: 1080, height: Math.round((metadata.height * 1080) / metadata.width) }
     const data = await image.resize(size.width, size.height).toBuffer()
     await Deno.writeFile(frame, data)
   }
