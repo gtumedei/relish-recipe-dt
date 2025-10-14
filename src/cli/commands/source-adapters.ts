@@ -33,19 +33,25 @@ const findVideosCommand = new Command()
 const downloadVideoCommand = new Command()
   .name("download")
   .description("Download a video from YouTube.")
-  .option("-c, --captions", "Download and save captions.")
   .arguments("<video-url:string> <out-dir:string>")
-  .action(async ({ captions }, videoUrl, outDir) => {
+  .action(async (_, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
-    const res = await youtube.downloadVideo({
-      url: videoUrl,
-      outDir,
-      withCaptions: captions,
-    })
+    const videoPath = await youtube.downloadVideo({ url: videoUrl, outDir })
     spinner.stop()
-    console.log(`${c.green("✓")} Video downloaded to ${res.videoPath}`)
-    if (captions) console.log(`  Captions saved to ${res.captionsPath}`)
+    console.log(`${c.green("✓")} Video downloaded to ${videoPath}`)
+  })
+
+const downloadVideoCaptionsCommand = new Command()
+  .name("download-captions")
+  .description("Download the captions of a video from YouTube.")
+  .arguments("<video-url:string> <out-dir:string>")
+  .action(async (_, videoUrl, outDir) => {
+    const spinner = new Spinner({ message: "Downloading video captions...", color: "blue" })
+    spinner.start()
+    const captionsPath = await youtube.downloadVideoCaptions({ url: videoUrl, outDir })
+    spinner.stop()
+    console.log(`  Captions saved to ${captionsPath}`)
   })
 
 const fullPipelineCommand = new Command()
@@ -73,6 +79,7 @@ const youtubeCommand = new Command()
   })
   .command(findVideosCommand.getName(), findVideosCommand)
   .command(downloadVideoCommand.getName(), downloadVideoCommand)
+  .command(downloadVideoCaptionsCommand.getName(), downloadVideoCaptionsCommand)
   .command(fullPipelineCommand.getName(), fullPipelineCommand)
   .command(videoPipelineCommand.getName(), videoPipelineCommand)
 

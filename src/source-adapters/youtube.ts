@@ -126,11 +126,8 @@ export const youtube = {
     logger.i(`[${videoId}] Downloading video...`)
     const videoUrl = `https://youtube.com/watch?v=${videoId}`
     const videoDir = join(tmpDir, videoId)
-    const { videoPath, captionsPath } = await youtube.downloadVideo({
-      url: videoUrl,
-      outDir: videoDir,
-      withCaptions: true,
-    })
+    const videoPath = await youtube.downloadVideo({ url: videoUrl, outDir: videoDir })
+    const captionsPath = await youtube.downloadVideoCaptions({ url: videoUrl, outDir: videoDir })
 
     logger.i(`[${videoId}] Getting video metadata...`)
     const duration = await getVideoDuration(videoPath)
@@ -162,7 +159,7 @@ export const youtube = {
       transcription: audioTranscriptionString,
       description: framesDescriptionString,
     })
-    const descriptionPath = join(videoDir, "description.json")
+    const descriptionPath = join(videoDir, "description.txt")
     await Deno.writeTextFile(descriptionPath, description)
     logger.i(`[${videoId}] Result saved to ${descriptionPath}`)
 
@@ -179,33 +176,33 @@ export const youtube = {
     )
     const videoPath = videoFile ? join(params.outDir, videoFile.name) : null
     if (!videoPath) throw new Error("Unable to retrieve the path of the downloaded video")
-    // Download captions and retrieve file path if requested
-    let captionsPath: string | null = null
-    if (params.withCaptions) {
-      await executeCommand(
-        "yt-dlp",
-        "--write-auto-sub",
-        "--write-sub",
-        "--sub-lang",
-        "en,original",
-        "--skip-download",
-        "-P",
-        params.outDir,
-        params.url
+    return videoPath
+  },
+
+  downloadVideoCaptions: async (params: { url: string; outDir: string }) => {
+    await executeCommand(
+      "yt-dlp",
+      "--write-auto-sub",
+      "--write-sub",
+      "--sub-lang",
+      "en,original",
+      "--skip-download",
+      "-P",
+      params.outDir,
+      params.url
+    )
+    const captionsFile = Array.from(Deno.readDirSync(params.outDir)).find(
+      (f) => f.isFile && /\.(vtt)$/i.test(f.name)
+    )
+    const captionsPath = captionsFile ? join(params.outDir, captionsFile.name) : null
+    if (captionsPath) {
+      const captions = await Deno.readTextFile(captionsPath)
+      const formattedCaptions = vttToJson(captions)
+      await Deno.writeTextFile(
+        join(params.outDir, "captions.json"),
+        JSON.stringify(formattedCaptions, null, 2)
       )
-      const captionsFile = Array.from(Deno.readDirSync(params.outDir)).find(
-        (f) => f.isFile && /\.(vtt)$/i.test(f.name)
-      )
-      captionsPath = captionsFile ? join(params.outDir, captionsFile.name) : null
-      if (captionsPath) {
-        const captions = await Deno.readTextFile(captionsPath)
-        const formattedCaptions = vttToJson(captions)
-        await Deno.writeTextFile(
-          join(params.outDir, "captions.json"),
-          JSON.stringify(formattedCaptions, null, 2)
-        )
-      }
     }
-    return { videoPath, captionsPath }
+    return captionsPath
   },
 }

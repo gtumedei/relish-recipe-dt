@@ -82,12 +82,23 @@ export const extractFramesFromVideo = async (args: {
   }
 }
 
+/** Convert a timestamp string in the format HH:mm:ss.sss to seconds */
+const timestampToSeconds = (timestamp: string) => {
+  const segments = timestamp.split(":")
+  const seconds = segments
+    .map((v) => +v)
+    .reduce((acc, value, i) => {
+      return acc + value * 60 ** (segments.length - 1 - i)
+    }, 0)
+  return seconds
+}
+
 export const vttToJson = (vtt: string) => {
   const blocks = vtt
     .split(/\r?\n\r?\n/)
     .filter((block) => block.match(/\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}/))
 
-  const result: { start: string; end: string; text: string }[] = []
+  const segments: { start: string; end: string; text: string }[] = []
   let lastText = ""
 
   for (let i = 0; i < blocks.length; i++) {
@@ -105,23 +116,29 @@ export const vttToJson = (vtt: string) => {
       .trim()
     if (!text) continue
 
-    if (lastText.includes(text)) continue
+    if (lastText.endsWith(text)) continue
     else {
       // Remove partial overlaps with the previous entry
       for (let j = text.length - 1; j > 0; j--) {
         const s = text.substring(0, j)
-        if (lastText.includes(s)) {
+        if (lastText.endsWith(s)) {
           text = text.replace(s, "").trim()
           break
         }
       }
       // Add the new entry
-      result.push({ start, end, text })
+      segments.push({ start, end, text })
       lastText = text
     }
   }
 
-  return result
+  const formattedSegments = segments.map((segment) => ({
+    text: segment.text,
+    startSecond: Math.round(timestampToSeconds(segment.start)),
+    endSecond: Math.round(timestampToSeconds(segment.end)),
+  }))
+
+  return formattedSegments
 }
 
 const transcriptionModel = openai.transcription("whisper-1")
@@ -137,7 +154,12 @@ export const transcribeAudio = async (audioPath: string) => {
       },
     },
   })
-  return { text, segments }
+  const formattedSegments = segments.map((segment) => ({
+    text: segment.text,
+    startSecond: Math.round(segment.startSecond),
+    endSecond: Math.round(segment.endSecond),
+  }))
+  return { text, segments: formattedSegments }
 }
 
 const imageDescriptionModel = openai("gpt-4.1-mini")
@@ -242,14 +264,14 @@ Your objective is to:
 2. Maintain the **temporal sequence** so the narrative follows the video's timeline.
 3. Merge overlapping or redundant information smoothly, integrating spoken dialogue, captions, sounds, and visual content.
 4. Write in a **descriptive, narrative style** suitable for understanding the video without watching it.
-5. Highlight **key actions, locations, transitions, and emotional tone**.
-6. If information is missing in a segment, describe what can be inferred or note the absence gracefully.
+5. Report **dialogue, actions, locations, transitions, and tone** in detail.
+6. If information is missing in a segment, describe what can be inferred (if anything), but always note the absence.
 
 Output format:
 
 - Plain text (no JSON, no timestamps).
 - Produce a single cohesive description of the video from beginning to end.
-- Aim for clarity, vividness, and readability.
+- Aim for clarity, vividness, readability, and detail.
 `
 
 export const describeVideo = async (args: {
