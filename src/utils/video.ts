@@ -278,10 +278,13 @@ export const describeVideo = async (args: {
   captions: string
   transcription: string
   description: string
+  promptAppendix?: string
 }) => {
   const { text } = await generateText({
     model: videoDescriptionModel,
-    system: videoDescriptionPrompt,
+    system: args.promptAppendix
+      ? `${videoDescriptionPrompt}\n\nAdditional instructions below.\n\n${args.promptAppendix}`
+      : videoDescriptionPrompt,
     messages: [
       {
         role: "user",
