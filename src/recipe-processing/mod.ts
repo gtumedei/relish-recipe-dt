@@ -1,9 +1,11 @@
 import { google } from "@ai-sdk/google"
+import { openai } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { z } from "zod"
+import jsonSchema from "@relish/storage/json-schema.json" with { type: "json" }
 
-const model = google("gemini-2.5-flash")
-const systemPrompt = `
+const evaluationModel = google("gemini-2.5-flash")
+const evaluationPrompt = `
 You are an AI that evaluates whether a given piece of metadata from a social media post indicates that the post contains **instructions for preparing a dish (i.e., a recipe)**.
 
 Your task is to carefully analyze the text and assign a rating on a **5-point certainty scale**:
@@ -45,10 +47,74 @@ const OutputSchema = z.coerce.number().min(1).max(5)
 
 export const evaluateRecipeLikelihood = async (metadata: string) => {
   const { text } = await generateText({
-    model,
-    system: systemPrompt,
+    model: evaluationModel,
+    system: evaluationPrompt,
     messages: [{ role: "user", content: metadata }],
   })
   const res = OutputSchema.parse(text)
   return res
+}
+
+const extractionModel = openai("gpt-4o-mini")
+const extractionPrompt = `
+You are an expert culinary information extraction model.
+You receive informal or noisy text (e.g., posts or video transcriptions from social media). These texts may contain unrelated commentary, anecdotes, or filler language.
+
+Your task is to identify and extract only the structured recipe information contained in the text.
+Follow these rules:
+
+- Ignore non-recipe content (introductions, jokes, ads, etc.).
+- Output must be a valid JSON object (or an array of JSON objects if multiple recipes are found).
+- The JSON must strictly conform to one of the following structures:
+  - If the extraction was successful:
+    \`\`\`json
+    {
+      result: <either an object (single recipe found) or an array of objects (multiple recipes found)>
+      confidence: number
+    }
+    \`\`\`
+  - If the extraction failed:
+    \`\`\`json
+    {
+      result: null
+      confidence: 0.0
+    }
+    \`\`\`
+- In the above JSON objects:
+  - \`result\` should adhere to the JSON schema provided below, without extra fields or explanations. For example:
+    - With one recipe
+    TODO
+      \`\`\`json
+      {
+        result: null
+        confidence: 0.0
+      }
+      \`\`\`
+    - With multiple recipes
+    TODO
+      \`\`\`json
+      {
+        result: null
+        confidence: 0.0
+      }
+      \`\`\`
+  - \`confidence\` should be in a 0-1 range, estimating your confidence in the accuracy and completeness of the extraction (1.0 = highly confident, text is a recipe and clear instructions are given, 0.5 = partial or uncertain extraction, 0.0 = no valid recipe information found).
+- Always output the recipe in English, even if the input text is in another language. Translate ingredient names and steps to English, but stick to the original language for typical terms.
+- Strictly report only what's in the text without making up any additional information.
+
+Here is the JSON schema you must strictly follow:
+
+${JSON.stringify(jsonSchema, null, 2)}
+`
+
+// TODO: remove ids?
+// TODO: validate result using the Prisma Zod Schema
+
+export const extractRecipe = async (text: string) => {
+  const { text: rawResult } = await generateText({
+    model: extractionModel,
+    system: extractionPrompt,
+    messages: [{ role: "user", content: text }],
+  })
+  return rawResult
 }

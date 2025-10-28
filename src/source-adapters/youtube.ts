@@ -158,6 +158,15 @@ export const youtube = {
       captions: captionsPath ? await Deno.readTextFile(captionsPath) : "",
       transcription: audioTranscriptionString,
       description: framesDescriptionString,
+      promptAppendix: `
+      Cooking video specialization:
+      When generating the description, make sure to include all relevant cooking-related information that appears in the video. This includes:
+      - Cooking techniques and methods
+      - Ingredients and their quantities
+      - Timings, durations, and temperatures
+      - Tools, utensils, and equipment used
+      - Key visual cues related to food preparation, presentation, or changes in the dish
+      `,
     })
     const descriptionPath = join(videoDir, "description.txt")
     await Deno.writeTextFile(descriptionPath, description)

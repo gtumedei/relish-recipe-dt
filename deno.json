@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "start:cli": "cd src/cli && deno run start"
+    "cli:start": "cd src/cli && deno run start"
   },
   "workspace": ["./src/*"],
   "nodeModulesDir": "auto",
