@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated"
+  output   = "../generated"
   runtime  = "deno"
 }
 
@@ -21,7 +21,7 @@ model Dish {
 
 model Recipe {
   id            String          @id @default(auto()) @map("_id") @db.ObjectId
-  dishId        String
+  dishId        String          @db.ObjectId
   dish          Dish            @relation(fields: [dishId], references: [id])
   ingredients   IngredientRef[]
   tools         ToolRef[]
