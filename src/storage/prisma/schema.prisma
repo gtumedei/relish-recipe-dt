@@ -1,7 +1,17 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated"
+  output   = "../generated/prisma/client"
   runtime  = "deno"
+}
+
+generator jsonSchema {
+  provider = "prisma-json-schema-generator"
+  output   = "../generated/prisma/json-schema"
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "../generated/prisma/zod"
 }
 
 datasource db {

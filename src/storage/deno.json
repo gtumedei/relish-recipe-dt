@@ -4,8 +4,15 @@
     "db:push": "dotenv -e ../env/.env -- prisma db push",
     "db:generate": "prisma generate"
   },
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts",
+    "./zod": "./generated/prisma/zod/schemas/index.ts",
+    "./json-schema.json": "./generated/prisma/json-schema/json-schema.json"
+  },
   "imports": {
-    "@prisma/client": "npm:@prisma/client@^6.16.2"
+    "@prisma/client": "npm:@prisma/client@^6.16.2",
+    "prisma-json-schema-generator": "npm:prisma-json-schema-generator@^5.1.5",
+    "prisma-zod-generator": "npm:prisma-zod-generator@^1.28.3",
+    "ts-json-schema-generator": "npm:ts-json-schema-generator@^2.4.0"
   }
 }
