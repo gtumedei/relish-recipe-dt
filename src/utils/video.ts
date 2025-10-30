@@ -48,9 +48,9 @@ export const extractAudioFromVideo = async (args: {
 }
 
 const readFrames = async (framesDir: string) => {
-  const res = (await Array.fromAsync(Deno.readDir(framesDir))).filter(
-    (f) => f.isFile && f.name.startsWith("frame-")
-  )
+  const res = (await Array.fromAsync(Deno.readDir(framesDir)))
+    .filter((f) => f.isFile && f.name.startsWith("frame-"))
+    .toSorted((a, b) => a.name.localeCompare(b.name))
   return res
 }
 
@@ -165,8 +165,8 @@ export const transcribeAudio = async (audioPath: string) => {
 const imageDescriptionModel = openai("gpt-4.1-mini")
 const imageDescriptionPrompt = `
 You are an expert video analysis model.
-You will receive a list of still image frames extracted from a video - one frame per second.
-Your task is to generate a structured JSON description of the video.
+You will receive a list of still image frames extracted from a video, one frame per second, in chronological order.
+Your task is to generate a structured JSON description of what happens in the video exactly as it appears, frame by frame, without reordering, guessing, or adding inferred context.
 
 I will provide you with a sequence of image frames, each labeled with a timestamp in seconds (e.g., "frame-0001.png", "frame-0002.png", "frame-0003.png", etc.).
 Your goal is to describe the events in the video in a **structured, timestamped JSON array**.
@@ -196,6 +196,9 @@ Please follow these rules carefully:
      }
    ]
    \`\`\`
+
+6. Process frames strictly in the order given and preserve that order. Never reorder, merge, or anticipate future events.
+7. Only describe visible content that can be confirmed from the frames. Do not infer motivations, emotions, causes, or unseen actions. Describe only what can be visually confirmed in the frames.
 `
 
 const OutputSchema = z.array(

@@ -1,5 +1,5 @@
 import { env } from "@relish/env"
-import { evaluateRecipeLikelihood } from "@relish/recipe-processing"
+import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
 import { tmpDir } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
 import { logger } from "@relish/utils/logger"
@@ -58,9 +58,20 @@ type YoutubeSearchItem = {
   }
 }
 
+export const parseVideoUrlOrId = (videoURLOrID: string) => {
+  return videoURLOrID.startsWith("http")
+    ? { url: videoURLOrID, id: new URL(videoURLOrID).searchParams.get("v")! }
+    : { url: `https://youtube.com/watch?v=${videoURLOrID}`, id: videoURLOrID }
+}
+
 export const youtube = {
-  executeFullPipeline: async () => {
-    const data = await youtube.findVideos({ q: "food", maxResults: "1" })
+  executeFullPipeline: async (
+    params:
+      | { data: YoutubeSearchResult }
+      | (Pick<YoutubeSearchParameters, "q"> & Partial<YoutubeSearchParameters>)
+  ) => {
+    const data =
+      "data" in params ? params.data : await youtube.findVideos({ q: "food", maxResults: "1" })
     logger.i(
       `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`
     )
@@ -89,7 +100,7 @@ export const youtube = {
     logger.i("Downloading selected videos for further processing")
     for (const item of items) {
       try {
-        await youtube.executeVideoPipeline({ videoId: item.metadata.id.videoId })
+        await youtube.executeVideoPipeline({ videoUrlOrId: item.metadata.id.videoId })
       } catch (e) {
         if (e instanceof CommandError) {
           logger.e(e.stdout)
@@ -122,12 +133,13 @@ export const youtube = {
     return data
   },
 
-  executeVideoPipeline: async ({ videoId }: { videoId: string }) => {
+  executeVideoPipeline: async ({ videoUrlOrId }: { videoUrlOrId: string }) => {
+    const { id: videoId } = parseVideoUrlOrId(videoUrlOrId)
+
     logger.i(`[${videoId}] Downloading video...`)
-    const videoUrl = `https://youtube.com/watch?v=${videoId}`
     const videoDir = join(tmpDir, videoId)
-    const videoPath = await youtube.downloadVideo({ url: videoUrl, outDir: videoDir })
-    const captionsPath = await youtube.downloadVideoCaptions({ url: videoUrl, outDir: videoDir })
+    const videoPath = await youtube.downloadVideo({ videoUrlOrId, outDir: videoDir })
+    const captionsPath = await youtube.downloadVideoCaptions({ videoUrlOrId, outDir: videoDir })
 
     logger.i(`[${videoId}] Getting video metadata...`)
     const duration = await getVideoDuration(videoPath)
@@ -170,15 +182,30 @@ export const youtube = {
     })
     const descriptionPath = join(videoDir, "description.txt")
     await Deno.writeTextFile(descriptionPath, description)
-    logger.i(`[${videoId}] Result saved to ${descriptionPath}`)
 
-    // TODO: convert the description to a structured recipe, if possible
+    logger.i(`[${videoId}] Extracting formatted recipe...`)
+    const recipe = await extractRecipe(description)
+    const recipePath = join(videoDir, "recipe.json")
+    await Deno.writeTextFile(recipePath, recipe)
+    logger.i(`[${videoId}] Result saved to ${recipePath}`)
   },
 
-  downloadVideo: async (params: { url: string; outDir: string; withCaptions?: boolean }) => {
+  downloadVideo: async (params: {
+    videoUrlOrId: string
+    outDir: string
+    withCaptions?: boolean
+  }) => {
+    const { url } = parseVideoUrlOrId(params.videoUrlOrId)
     const videoPathWithGenericExtension = join(params.outDir, "video.%(ext)s")
     // Download video
-    await executeCommand("yt-dlp", params.url, "-o", videoPathWithGenericExtension)
+    await executeCommand(
+      "yt-dlp",
+      "-f",
+      "bestvideo[height<=480]+bestaudio/best[height<=480]",
+      url,
+      "-o",
+      videoPathWithGenericExtension
+    )
     // Retrieve downloaded file path
     const videoFile = Array.from(Deno.readDirSync(params.outDir)).find(
       (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
@@ -188,18 +215,25 @@ export const youtube = {
     return videoPath
   },
 
-  downloadVideoCaptions: async (params: { url: string; outDir: string }) => {
-    await executeCommand(
-      "yt-dlp",
-      "--write-auto-sub",
-      "--write-sub",
-      "--sub-lang",
-      "en,original",
-      "--skip-download",
-      "-P",
-      params.outDir,
-      params.url
-    )
+  downloadVideoCaptions: async (params: { videoUrlOrId: string; outDir: string }) => {
+    const { url } = parseVideoUrlOrId(params.videoUrlOrId)
+    try {
+      await executeCommand(
+        "yt-dlp",
+        "--write-auto-sub",
+        "--write-sub",
+        "--sub-lang",
+        "en,original",
+        "--skip-download",
+        "-P",
+        params.outDir,
+        url
+      )
+    } catch (e) {
+      if (e instanceof CommandError) console.error(e, e.stderr)
+      else console.error(e)
+      return null
+    }
     const captionsFile = Array.from(Deno.readDirSync(params.outDir)).find(
       (f) => f.isFile && /\.(vtt)$/i.test(f.name)
     )

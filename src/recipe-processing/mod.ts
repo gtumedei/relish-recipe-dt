@@ -1,10 +1,9 @@
-import { google } from "@ai-sdk/google"
 import { openai } from "@ai-sdk/openai"
+import jsonSchema from "@relish/storage/json-schema.json" with { type: "json" }
 import { generateText } from "ai"
 import { z } from "zod"
-import jsonSchema from "@relish/storage/json-schema.json" with { type: "json" }
 
-const evaluationModel = google("gemini-2.5-flash")
+const evaluationModel = openai("gpt-4o-mini")
 const evaluationPrompt = `
 You are an AI that evaluates whether a given piece of metadata from a social media post indicates that the post contains **instructions for preparing a dish (i.e., a recipe)**.
 
@@ -41,6 +40,8 @@ When in doubt between two scores, select the higher one.
 \`\`\`
 5
 \`\`\`
+
+Output must be a single number, no additional text or markdown formatting.
 `
 
 const OutputSchema = z.coerce.number().min(1).max(5)
@@ -64,40 +65,24 @@ Your task is to identify and extract only the structured recipe information cont
 Follow these rules:
 
 - Ignore non-recipe content (introductions, jokes, ads, etc.).
-- Output must be a valid JSON object (or an array of JSON objects if multiple recipes are found).
+- Output must be a valid JSON object (or an array of JSON objects if multiple recipes are found). Only output valid JSON: no markdown, no additional text.
 - The JSON must strictly conform to one of the following structures:
   - If the extraction was successful:
     \`\`\`json
     {
-      result: <either an object (single recipe found) or an array of objects (multiple recipes found)>
-      confidence: number
+      "result": <either an object (single recipe found) or an array of objects (multiple recipes found)>
+      "confidence": number
     }
     \`\`\`
   - If the extraction failed:
     \`\`\`json
     {
-      result: null
-      confidence: 0.0
+      "result": null
+      "confidence": 0.0
     }
     \`\`\`
 - In the above JSON objects:
-  - \`result\` should adhere to the JSON schema provided below, without extra fields or explanations. For example:
-    - With one recipe
-    TODO
-      \`\`\`json
-      {
-        result: null
-        confidence: 0.0
-      }
-      \`\`\`
-    - With multiple recipes
-    TODO
-      \`\`\`json
-      {
-        result: null
-        confidence: 0.0
-      }
-      \`\`\`
+  - \`result\` should adhere to the JSON schema provided below, without extra fields or explanations.
   - \`confidence\` should be in a 0-1 range, estimating your confidence in the accuracy and completeness of the extraction (1.0 = highly confident, text is a recipe and clear instructions are given, 0.5 = partial or uncertain extraction, 0.0 = no valid recipe information found).
 - Always output the recipe in English, even if the input text is in another language. Translate ingredient names and steps to English, but stick to the original language for typical terms.
 - Strictly report only what's in the text without making up any additional information.
