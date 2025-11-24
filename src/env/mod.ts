@@ -7,6 +7,7 @@ const EnvSchema = z.object({
   YOUTUBE_API_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
+  GEONAMES_USERNAME: z.string().min(1),
 })
 
 const rawEnv = await load({ envPath: join(import.meta.dirname ?? "./", ".env"), export: true })

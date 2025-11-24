@@ -19,33 +19,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Related recipes
+// Recipe versions
+
 model Dish {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String   @unique
-  description String
-  recipes     Recipe[]
-  media       Media[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  name            String         @unique
+  description     String
+  recipes         Recipe[]
+  media           Media[]
+  searchMetadata  SearchMetadata
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  recipeInstances UserRecipe[]
 }
 
 model Recipe {
-  id            String          @id @default(auto()) @map("_id") @db.ObjectId
-  dishId        String          @db.ObjectId
-  dish          Dish            @relation(fields: [dishId], references: [id])
-  ingredients   IngredientRef[]
-  tools         ToolRef[]
-  steps         Step[]
-  totalPrepTime Int // Seconds
-  media         Media[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  dishId           String          @db.ObjectId
+  dish             Dish            @relation(fields: [dishId], references: [id])
+  ingredients      IngredientRef[]
+  tools            ToolRef[]
+  steps            Step[]
+  totalPrepSeconds Int
+  media            Media[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model UserRecipe {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  dishId      String              @db.ObjectId
+  dish        Dish                @relation(fields: [dishId], references: [id])
+  ingredients UserIngredientRef[]
+  tools       ToolRef[]
+  steps       UserStep[]
+  sourceId    String              @db.ObjectId
+  source      ProcessedUrl        @relation(fields: [sourceId], references: [id])
+  media       Media[]
+  location    Location
+  language    String // ISO 639
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 type IngredientRef {
   ingredientOrDishId String @db.ObjectId // TODO: relations in composite fields are not supported. Make sure this works well when querying the db
   quantity           Int
   unit               String
+}
+
+type UserIngredientRef {
+  ingredientOrDishId String  @db.ObjectId // TODO: relations in composite fields are not supported. Make sure this works well when querying the db
+  quantity           Int?
+  unit               String?
 }
 
 model Ingredient {
@@ -60,7 +87,19 @@ type Step {
   description String
   ingredients IngredientRef[]
   tools       ToolRef[]
-  time        Int
+  prepSeconds Int
+}
+
+type UserStep {
+  description String
+  ingredients UserIngredientRef[]
+  tools       ToolRef[]
+  prepSeconds Int?
+}
+
+type ToolRef {
+  tool         String   @db.ObjectId
+  alternatives String[] @db.ObjectId
 }
 
 model Tool {
@@ -70,16 +109,27 @@ model Tool {
   createdAt DateTime @default(now())
 }
 
-type ToolRef {
-  tool         String   @db.ObjectId
-  alternatives String[] @db.ObjectId
-}
-
 type Media {
   url         String
   type        MediaType
   description String?
   createdAt   DateTime  @default(now())
+}
+
+type Location {
+  string    String
+  geonameId String?
+}
+
+model ProcessedUrl {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  url         String       @unique
+  userRecipes UserRecipe[]
+  createdAt   DateTime     @default(now())
+}
+
+type SearchMetadata {
+  youtube String?
 }
 
 enum MediaType {
