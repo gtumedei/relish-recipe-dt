@@ -4,7 +4,7 @@
   },
   "workspace": ["./src/*"],
   "nodeModulesDir": "auto",
-  "unstable": ["detect-cjs"],
+  "unstable": ["detect-cjs", "sloppy-imports"],
   "imports": {
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.17",
     "@ai-sdk/openai": "npm:@ai-sdk/openai@^2.0.44",

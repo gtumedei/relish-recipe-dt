@@ -48,19 +48,20 @@ model Recipe {
 }
 
 model UserRecipe {
-  id          String              @id @default(auto()) @map("_id") @db.ObjectId
-  dishId      String              @db.ObjectId
-  dish        Dish                @relation(fields: [dishId], references: [id])
-  ingredients UserIngredientRef[]
-  tools       ToolRef[]
-  steps       UserStep[]
-  sourceId    String              @db.ObjectId
-  source      ProcessedUrl        @relation(fields: [sourceId], references: [id])
-  media       Media[]
-  location    Location
-  language    String // ISO 639
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  dishId           String              @db.ObjectId
+  dish             Dish                @relation(fields: [dishId], references: [id])
+  ingredients      UserIngredientRef[]
+  tools            ToolRef[]
+  steps            UserStep[]
+  totalPrepSeconds Int?
+  sourceId         String              @db.ObjectId
+  source           ProcessedUrl        @relation(fields: [sourceId], references: [id])
+  media            Media[]
+  location         Location
+  language         String // ISO 639
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 }
 
 type IngredientRef {

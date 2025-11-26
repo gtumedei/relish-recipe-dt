@@ -1,7 +1,9 @@
 import { openai } from "@ai-sdk/openai"
-import jsonSchema from "@relish/storage/json-schema.json" with { type: "json" }
-import { generateText } from "ai"
+// import jsonSchema from "@relish/storage/json-schema.json" with { type: "json" }
+// import { UserRecipeCreateOneSchema } from "@relish/storage/zod"
+import { generateObject, generateText } from "ai"
 import { z } from "zod"
+import { logger } from "@relish/utils/logger"
 
 const evaluationModel = openai("gpt-4o-mini")
 const evaluationPrompt = `
@@ -62,44 +64,87 @@ You are an expert culinary information extraction model.
 You receive informal or noisy text (e.g., posts or video transcriptions from social media). These texts may contain unrelated commentary, anecdotes, or filler language.
 
 Your task is to identify and extract only the structured recipe information contained in the text.
-Follow these rules:
 
+Follow these rules:
 - Ignore non-recipe content (introductions, jokes, ads, etc.).
-- Output must be a valid JSON object (or an array of JSON objects if multiple recipes are found). Only output valid JSON: no markdown, no additional text.
-- The JSON must strictly conform to one of the following structures:
-  - If the extraction was successful:
-    \`\`\`json
-    {
-      "result": <either an object (single recipe found) or an array of objects (multiple recipes found)>
-      "confidence": number
-    }
-    \`\`\`
-  - If the extraction failed:
-    \`\`\`json
-    {
-      "result": null
-      "confidence": 0.0
-    }
-    \`\`\`
-- In the above JSON objects:
-  - \`result\` should adhere to the JSON schema provided below, without extra fields or explanations.
-  - \`confidence\` should be in a 0-1 range, estimating your confidence in the accuracy and completeness of the extraction (1.0 = highly confident, text is a recipe and clear instructions are given, 0.5 = partial or uncertain extraction, 0.0 = no valid recipe information found).
 - Always output the recipe in English, even if the input text is in another language. Translate ingredient names and steps to English, but stick to the original language for typical terms.
 - Strictly report only what's in the text without making up any additional information.
-
-Here is the JSON schema you must strictly follow:
-
-${JSON.stringify(jsonSchema, null, 2)}
 `
 
-// TODO: remove ids?
-// TODO: validate result using the Prisma Zod Schema
+const InitialRecipeSchema = z.object({
+  dish: z.string(),
+  steps: z.array(
+    z.object({
+      description: z.string(),
+      ingredients: z.array(
+        z.object({
+          ingredientName: z.string(),
+          quantity: z.number().nullish(),
+          unit: z.string().nullish(),
+        })
+      ),
+      tools: z.array(
+        z.object({
+          toolName: z.string(),
+          alternativeTools: z.array(z.string()),
+        })
+      ),
+      prepSeconds: z.number().nullish(),
+    })
+  ),
+})
 
 export const extractRecipe = async (text: string) => {
-  const { text: rawResult } = await generateText({
+  // Generate structured recipe
+  logger.i("Extracting recipe from text")
+  const { object: initialRecipe } = await generateObject({
+    model: extractionModel,
+    system: "Convert this text into a list of structured recipes.",
+    schema: z.object({
+      result: z.array(InitialRecipeSchema),
+      confidence: z.number().min(0).max(1).describe("How certain you are about the end result"),
+    }),
+    prompt: text,
+  })
+
+  // Find existing ingredients from the recipe in the db
+  logger.i("Finding existing ingredients in the database")
+  const ingredients = [
+    ...new Set(
+      initialRecipe.result.flatMap((r) =>
+        r.steps.flatMap((s) => s.ingredients.map((i) => i.ingredientName))
+      )
+    ),
+  ]
+  console.log(ingredients)
+
+  // Find existing tools (and alternatives) from the recipe in the db
+  logger.i("Finding tools ingredients in the database")
+  const tools = [
+    ...new Set(
+      initialRecipe.result.flatMap((r) =>
+        r.steps.flatMap((s) => [
+          ...s.tools.map((t) => t.toolName),
+          ...s.tools.flatMap((t) => t.alternativeTools),
+        ])
+      )
+    ),
+  ]
+  console.log(tools)
+
+  // Regenerate the recipe reusing existing entities
+
+  // TODO: subrecipes?
+
+  // TODO: location + GeoNames ID
+
+  // TODO: language?
+
+  /* const { text: rawResult } = await generateText({
     model: extractionModel,
     system: extractionPrompt,
     messages: [{ role: "user", content: text }],
-  })
-  return rawResult
+  }) */
+  // const res = ExtractedRecipeSchema.parse(JSON.parse(rawResult))
+  // return rawResult
 }
