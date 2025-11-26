@@ -1,6 +1,12 @@
 {
   "tasks": {
-    "cli:start": "cd src/cli && deno run start"
+    "cli:start": "cd src/cli && deno run start",
+    "cli:bundle": "cd src/cli && deno run bundle",
+    "cli:compile": "cd src/cli && deno run compile",
+    "db:prepare": "dotenv -e ./src/env/.env -- docker compose --profile setup run --rm setup-generator",
+    "db:start": "dotenv -e ./src/env/.env -- docker compose up mongod mongot -d",
+    "db:push": "cd src/storage && dotenv -e ../env/.env -- prisma db push",
+    "db:generate": "cd src/storage && prisma generate"
   },
   "workspace": ["./src/*"],
   "nodeModulesDir": "auto",
@@ -13,7 +19,7 @@
     "@std/path": "jsr:@std/path@^1.1.2",
     "ai": "npm:ai@^5.0.59",
     "dayjs": "npm:dayjs@^1.11.18",
-    "dotenv-cli": "npm:dotenv-cli@^10.0.0",
+    "dotenv-cli": "npm:dotenv-cli@^11.0.0",
     "zod": "npm:zod@^4.1.11"
   },
   "lint": {

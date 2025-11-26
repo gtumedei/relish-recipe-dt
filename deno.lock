@@ -22,7 +22,7 @@
     "npm:ai@^5.0.59": "5.0.81_zod@4.1.11",
     "npm:chalk@^5.6.2": "5.6.2",
     "npm:dayjs@^1.11.18": "1.11.18",
-    "npm:dotenv-cli@10": "10.0.0",
+    "npm:dotenv-cli@11": "11.0.0",
     "npm:prisma-json-schema-generator@^5.1.5": "5.1.5",
     "npm:prisma-zod-generator@^1.28.3": "1.30.2_zod@4.1.11_ajv@8.17.1",
     "npm:sharp@~0.34.4": "0.34.4",
@@ -527,8 +527,8 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "dotenv-cli@10.0.0": {
-      "integrity": "sha512-lnOnttzfrzkRx2echxJHQRB6vOAMSCzzZg79IxpC00tU42wZPuZkQxNNrrwVAxaQZIIh001l4PxVlCrBxngBzA==",
+    "dotenv-cli@11.0.0": {
+      "integrity": "sha512-r5pA8idbk7GFWuHEU7trSTflWcdBpQEK+Aw17UrSHjS6CReuhrrPcyC3zcQBPQvhArRHnBo/h6eLH1fkCvNlww==",
       "dependencies": [
         "cross-spawn",
         "dotenv@17.2.3",
@@ -537,8 +537,8 @@
       ],
       "bin": true
     },
-    "dotenv-expand@11.0.7": {
-      "integrity": "sha512-zIHwmZPRshsCdpMDyVsqGmgyP0yT8GAgXUnkdAoJisxvf33k7yO6OuoKmcTGuXPWSsm8Oh88nZicRLA9Y0rUeA==",
+    "dotenv-expand@12.0.3": {
+      "integrity": "sha512-uc47g4b+4k/M/SeaW1y4OApx+mtLWl92l5LMPP0GNXctZqELk+YGgOPIIC5elYmUH4OuoK3JLhuRUYegeySiFA==",
       "dependencies": [
         "dotenv@16.6.1"
       ]
@@ -793,7 +793,7 @@
       "npm:@ai-sdk/openai@^2.0.44",
       "npm:ai@^5.0.59",
       "npm:dayjs@^1.11.18",
-      "npm:dotenv-cli@10",
+      "npm:dotenv-cli@11",
       "npm:zod@^4.1.11"
     ],
     "members": {

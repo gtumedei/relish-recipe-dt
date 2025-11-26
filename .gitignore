@@ -3,3 +3,8 @@ node_modules
 tmp
 *.env
 !.env.example
+
+# Mongo stuff
+keyfile
+passwordFile
+pwfile
