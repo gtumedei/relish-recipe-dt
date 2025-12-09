@@ -5,7 +5,7 @@
     "cli:compile": "cd src/cli && deno run compile",
     "db:prepare": "dotenv -e ./src/env/.env -- docker compose --profile setup run --rm setup-generator",
     "db:start": "dotenv -e ./src/env/.env -- docker compose up mongod mongot -d",
-    "db:push": "cd src/storage && dotenv -e ../env/.env -- prisma db push",
+    "db:push": "cd src/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
     "db:generate": "cd src/storage && prisma generate"
   },
   "workspace": ["./src/*"],
@@ -20,6 +20,7 @@
     "ai": "npm:ai@^5.0.59",
     "dayjs": "npm:dayjs@^1.11.18",
     "dotenv-cli": "npm:dotenv-cli@^11.0.0",
+    "openai": "npm:openai@^6.10.0",
     "zod": "npm:zod@^4.1.11"
   },
   "lint": {

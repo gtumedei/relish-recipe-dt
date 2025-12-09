@@ -23,6 +23,7 @@
     "npm:chalk@^5.6.2": "5.6.2",
     "npm:dayjs@^1.11.18": "1.11.18",
     "npm:dotenv-cli@11": "11.0.0",
+    "npm:openai@^6.10.0": "6.10.0_zod@4.1.11",
     "npm:prisma-json-schema-generator@^5.1.5": "5.1.5",
     "npm:prisma-zod-generator@^1.28.3": "1.30.2_zod@4.1.11_ajv@8.17.1",
     "npm:sharp@~0.34.4": "0.34.4",
@@ -645,6 +646,16 @@
     "ohash@2.0.11": {
       "integrity": "sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ=="
     },
+    "openai@6.10.0_zod@4.1.11": {
+      "integrity": "sha512-ITxOGo7rO3XRMiKA5l7tQ43iNNu+iXGFAcf2t+aWVzzqRaS0i7m1K2BhxNdaveB+5eENhO0VY1FkiZzhBk4v3A==",
+      "dependencies": [
+        "zod"
+      ],
+      "optionalPeers": [
+        "zod"
+      ],
+      "bin": true
+    },
     "path-key@3.1.1": {
       "integrity": "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q=="
     },
@@ -794,6 +805,7 @@
       "npm:ai@^5.0.59",
       "npm:dayjs@^1.11.18",
       "npm:dotenv-cli@11",
+      "npm:openai@^6.10.0",
       "npm:zod@^4.1.11"
     ],
     "members": {
