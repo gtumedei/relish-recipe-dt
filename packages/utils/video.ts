@@ -1,10 +1,10 @@
-import { openai } from "@ai-sdk/openai"
+import { gpt4_1Mini, whisper1 } from "@relish/utils/ai"
+import { executeCommand } from "@relish/utils/command"
 import { ensureDir } from "@std/fs"
 import { join } from "@std/path"
 import { generateText, experimental_transcribe as transcribe } from "ai"
 import sharp from "sharp"
 import { z } from "zod"
-import { executeCommand } from "./command.ts"
 
 const FfprobeDurationSchema = z.object({
   format: z.object({
@@ -141,11 +141,9 @@ export const vttToJson = (vtt: string) => {
   return formattedSegments
 }
 
-const transcriptionModel = openai.transcription("whisper-1")
-
 export const transcribeAudio = async (audioPath: string) => {
   const { text, segments } = await transcribe({
-    model: transcriptionModel,
+    model: whisper1,
     audio: await Deno.readFile(audioPath),
     providerOptions: {
       openai: {
@@ -162,7 +160,6 @@ export const transcribeAudio = async (audioPath: string) => {
   return { text, segments: formattedSegments }
 }
 
-const imageDescriptionModel = openai("gpt-4.1-mini")
 const imageDescriptionPrompt = `
 You are an expert video analysis model.
 You will receive a list of still image frames extracted from a video, one frame per second, in chronological order.
@@ -226,7 +223,7 @@ export const describeVideoFrames = async (
           }))
         )
   const { text } = await generateText({
-    model: imageDescriptionModel,
+    model: gpt4_1Mini,
     system: imageDescriptionPrompt,
     messages: [
       {
@@ -242,7 +239,6 @@ export const describeVideoFrames = async (
   return res
 }
 
-const videoDescriptionModel = openai("gpt-4o-mini")
 const videoDescriptionPrompt = `
 You are an expert media analyst and descriptive writer.
 Your task is to produce a **detailed, coherent, and human-readable description** of a video based on three sources of timestamped JSON data:
@@ -284,7 +280,7 @@ export const describeVideo = async (args: {
   promptAppendix?: string
 }) => {
   const { text } = await generateText({
-    model: videoDescriptionModel,
+    model: gpt4_1Mini,
     system: args.promptAppendix
       ? `${videoDescriptionPrompt}\n\nAdditional instructions below.\n\n${args.promptAppendix}`
       : videoDescriptionPrompt,

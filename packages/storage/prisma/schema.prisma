@@ -58,6 +58,8 @@ model UserRecipe {
   totalPrepSeconds Int?
   sourceId         String              @db.ObjectId
   source           ProcessedUrl        @relation(fields: [sourceId], references: [id])
+  index            Int
+  modelConfidence  Float
   media            Media[]
   location         Location
   language         String // ISO 639

@@ -1,8 +1,7 @@
-import { openai } from "@ai-sdk/openai"
+import { gpt4oMini } from "@relish/utils/ai"
 import { generateText } from "ai"
 import { z } from "zod"
 
-const evaluationModel = openai("gpt-4o-mini")
 const evaluationPrompt = `
 You are an AI that evaluates whether a given piece of metadata from a social media post indicates that the post contains **instructions for preparing a dish (i.e., a recipe)**.
 
@@ -47,7 +46,7 @@ const OutputSchema = z.coerce.number().min(1).max(5)
 
 export const evaluateRecipeLikelihood = async (metadata: string) => {
   const { text } = await generateText({
-    model: evaluationModel,
+    model: gpt4oMini,
     system: evaluationPrompt,
     messages: [{ role: "user", content: metadata }],
   })

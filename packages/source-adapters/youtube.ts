@@ -14,6 +14,7 @@ import {
 } from "@relish/utils/video"
 import { join } from "@std/path"
 import dayjs from "dayjs"
+import type { ExtractedRecipeWithMetadata } from "./mod.ts"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
@@ -98,9 +99,23 @@ export const youtube = {
     items = items.filter((item) => item.score !== null && item.score >= RECIPE_LIKELIHOOD_THRESHOLD)
 
     logger.i("Downloading selected videos for further processing")
-    for (const item of items) {
+    const recipes: ExtractedRecipeWithMetadata[] = []
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]!
       try {
-        await youtube.executeVideoPipeline({ videoUrlOrId: item.metadata.id.videoId })
+        const recipes = await youtube.executeVideoPipeline({
+          videoUrlOrId: item.metadata.id.videoId,
+        })
+        recipes.push(
+          ...recipes.map(
+            (r) =>
+              ({
+                source: item.metadata.id.videoId,
+                index: i,
+                ...r,
+              } satisfies ExtractedRecipeWithMetadata)
+          )
+        )
       } catch (e) {
         if (e instanceof CommandError) {
           logger.e(e.stdout)
@@ -110,7 +125,7 @@ export const youtube = {
         }
       }
     }
-    return items
+    return recipes
   },
 
   findVideos: async (
@@ -186,13 +201,21 @@ export const youtube = {
     logger.i(`[${videoId}] Extracting formatted recipe...`)
     const recipe = await extractRecipe(description)
 
-    // TODO: location (+ GeoNames ID)
+    logger.i(`[${videoId}] Fetching detailed metadata...`)
+    const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId })
 
-    // TODO: language?
+    const recipesWithMetadata = recipe.result.map((r) => ({
+      ...r,
+      language: metadata.language as string | undefined,
+      location: metadata.location as string | undefined,
+      modelConfidence: recipe.confidence,
+    }))
 
     const recipePath = join(videoDir, "recipe.json")
-    await Deno.writeTextFile(recipePath, JSON.stringify(recipe, null, 2))
+    await Deno.writeTextFile(recipePath, JSON.stringify(recipesWithMetadata, null, 2))
     logger.i(`[${videoId}] Result saved to ${recipePath}`)
+
+    return recipesWithMetadata
   },
 
   downloadVideo: async (params: {
@@ -252,5 +275,18 @@ export const youtube = {
       )
     }
     return captionsPath
+  },
+
+  fetchDetailedMetadata: async (params: { videoUrlOrId: string }) => {
+    const { url } = parseVideoUrlOrId(params.videoUrlOrId)
+    try {
+      const out = await executeCommand("yt-dlp", "-j", url)
+      const metadata = JSON.parse(out.stdout)
+      return metadata
+    } catch (e) {
+      if (e instanceof CommandError) console.error(e, e.stderr)
+      else console.error(e)
+      return null
+    }
   },
 }
