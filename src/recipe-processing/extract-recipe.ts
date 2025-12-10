@@ -1,10 +1,9 @@
 import { openai } from "@ai-sdk/openai"
+import { db, type Prisma } from "@relish/storage"
+import { toEmbedding } from "@relish/utils/ai"
 import { logger } from "@relish/utils/logger"
 import { generateObject } from "ai"
 import { z } from "zod"
-import { OpenAI } from "openai"
-import { env } from "@relish/env"
-import { db, Prisma } from "@relish/storage"
 
 const extractionModel = openai("gpt-4o-mini")
 const extractionPrompt = `
@@ -28,7 +27,12 @@ const InitialRecipeSchema = z.object({
         z.object({
           ingredientName: z.string(),
           quantity: z.number().nullish(),
-          unit: z.string().nullish(),
+          unit: z
+            .string()
+            .nullish()
+            .describe(
+              `Set to "units" if the ingredient has a quantity but not a specific unit (e.g. 4 eggs)`
+            ),
         })
       ),
       tools: z.array(
@@ -42,7 +46,12 @@ const InitialRecipeSchema = z.object({
   ),
 })
 
-export const extractRecipe = async (text: string): Promise<Prisma.UserRecipeCreateManyInput[]> => {
+export type ExtractedRecipe = Pick<
+  Prisma.UserRecipeCreateManyInput,
+  "ingredients" | "tools" | "steps" | "totalPrepSeconds"
+>
+
+export const extractRecipe = async (text: string) => {
   // Generate structured recipe
   logger.i("Extracting recipe from text")
   const { object: initialRecipes } = await generateObject({
@@ -54,7 +63,11 @@ export const extractRecipe = async (text: string): Promise<Prisma.UserRecipeCrea
     }),
     prompt: text,
   })
-  console.log(initialRecipes)
+  return initialRecipes
+}
+
+export const extractRecipeWithDbEntities = async (text: string): Promise<ExtractedRecipe[]> => {
+  const initialRecipes = await extractRecipe(text)
 
   // Find existing ingredients from the recipe in the db
   const ingredientNames = [
@@ -65,33 +78,11 @@ export const extractRecipe = async (text: string): Promise<Prisma.UserRecipeCrea
     ),
   ]
   logger.i(`Finding ${ingredientNames.length} ingredients in the database`)
-  const ingredients = await Promise.all(
-    ingredientNames.map(async (ingredient) => {
-      logger.i(`Searching for "${ingredient}" references`)
-      const nameEmbedding = await toEmbedding(ingredient)
-      const res = await findIngredientSemantically({ query: ingredient, embedding: nameEmbedding })
-      if (res.data) {
-        logger.s(`Reference found for "${ingredient}"`)
-        const ingredientFromDb = await db.ingredient.findUnique({
-          where: { id: res.data._id.$oid },
-        })
-        if (!ingredientFromDb)
-          throw new Error(
-            `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
-          )
-        return { string: ingredient, document: ingredientFromDb }
-      } else {
-        logger.i(`No reference found for "${ingredient}": creating new database entry`)
-        const ingredientFromDb = await db.ingredient.create({
-          data: { name: ingredient, nameEmbedding },
-        })
-        return { string: ingredient, document: ingredientFromDb }
-      }
-    })
-  )
+  const dbIngredients = await Promise.all(ingredientNames.map(findOrCreateIngredient))
 
   // Find existing tools (and alternatives) from the recipe in the db
-  const toolNames = [
+  // All tools flattened
+  const allToolNames = [
     ...new Set(
       initialRecipes.result.flatMap((r) =>
         r.steps.flatMap((s) => [
@@ -101,71 +92,87 @@ export const extractRecipe = async (text: string): Promise<Prisma.UserRecipeCrea
       )
     ),
   ]
-  logger.i(`Finding ${toolNames.length} tools in the database`)
-  const tools = await Promise.all(
-    toolNames.map(async (tool) => {
-      logger.i(`Searching for "${tool}" references`)
-      const nameEmbedding = await toEmbedding(tool)
-      const res = await findToolSemantically({ query: tool, embedding: nameEmbedding })
-      if (res.data) {
-        logger.s(`Reference found for "${tool}"`)
-        const toolFromDb = await db.tool.findUnique({
-          where: { id: res.data._id.$oid },
-        })
-        if (!toolFromDb)
-          throw new Error(
-            `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
-          )
-        return { string: tool, document: toolFromDb }
-      } else {
-        logger.i(`No reference found for "${tool}": creating new database entry`)
-        const toolFromDb = await db.tool.create({
-          data: { name: tool, nameEmbedding },
-        })
-        return { string: tool, document: toolFromDb }
-      }
-    })
-  )
-
-  // Regenerate the recipe reusing existing entities
+  // Tools from all steps, but keeping the tool-alternatives structure
+  const toolNamesWithAlternatives = initialRecipes.result
+    .flatMap((r) => r.steps.flatMap((s) => s.tools))
+    .reduce(
+      (acc, tool) => {
+        const accTool = acc.find((t) => t.toolName == tool.toolName)
+        if (accTool) {
+          accTool.alternativeTools.push(...tool.alternativeTools)
+          accTool.alternativeTools = [...new Set(accTool.alternativeTools)]
+        } else {
+          acc.push(tool)
+        }
+        return acc
+      },
+      [] as {
+        toolName: string
+        alternativeTools: string[]
+      }[]
+    )
+  logger.i(`Finding ${allToolNames.length} tools in the database`)
+  const dbTools = await Promise.all(allToolNames.map(findOrCreateTool))
 
   // TODO: subrecipes?
 
-  // TODO: location + GeoNames ID
-
-  // TODO: language?
-
-  /* const { text: rawResult } = await generateText({
-    model: extractionModel,
-    system: extractionPrompt,
-    messages: [{ role: "user", content: text }],
-  }) */
-  // const res = ExtractedRecipeSchema.parse(JSON.parse(rawResult))
-  // return rawResult
-  const res: Prisma.UserRecipeCreateManyInput[] = initialRecipes.result.map((recipe) => ({
-    dishId: "",
-    ingredients: [],
-    tools: [],
-    steps: [],
-    totalPrepSeconds: 0,
-    sourceId: "",
-    location: {
-      geonameId: "",
-      string: "",
-    },
-    language: "",
+  // Regenerate the recipe reusing existing entities
+  const res: ExtractedRecipe[] = initialRecipes.result.map((recipe) => ({
+    // Gather all ingredient references and quantities
+    ingredients: dbIngredients.map((ingredient) => {
+      const { partial, ...amount } = recipe.steps
+        .flatMap((s) => s.ingredients)
+        .filter((i) => i.ingredientName == ingredient.string)
+        .reduce(
+          (acc, i) => {
+            // Can't compute total quantity if:
+            // - Some steps don't have quantity or unit
+            // - Units don't match across all steps (TODO: this could be fixed with a unit-to-unit conversion)
+            if (acc.partial) return acc
+            if (typeof i.quantity != "number" || !i.unit || (acc.unit && acc.unit != i.unit)) {
+              acc.partial = true
+              return acc
+            }
+            acc.quantity += i.quantity
+            acc.unit = i.unit
+            return acc
+          },
+          { partial: false, quantity: 0, unit: null as string | null }
+        )
+      const ref = {
+        ingredientOrDishId: ingredient.document.id,
+        ...(partial ? {} : amount),
+      }
+      return ref
+    }),
+    // Gather all tools and alternatives
+    tools: toolNamesWithAlternatives.map((t) => ({
+      tool: dbTools.find((dbTool) => dbTool.string == t.toolName)!.document.id,
+      alternatives: t.alternativeTools.map(
+        (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id
+      ),
+    })),
+    steps: recipe.steps.map((step) => ({
+      description: step.description,
+      // Replace ingredient names with ObjectIds
+      ingredients: step.ingredients.map((ingredient) => ({
+        ...ingredient,
+        ingredientOrDishId:
+          dbIngredients.find((i) => i.string == ingredient.ingredientName)!.document.id ?? "",
+      })),
+      // Replace tool names with ObjectIds
+      tools: step.tools.map((t) => ({
+        tool: dbTools.find((dbTool) => dbTool.string == t.toolName)!.document.id,
+        alternatives: t.alternativeTools.map(
+          (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id
+        ),
+      })),
+      prepSeconds: step.prepSeconds,
+    })),
+    // Compute total prep seconds by summing individual steps
+    totalPrepSeconds: recipe.steps.reduce((tot, step) => tot + (step.prepSeconds ?? 0), 0),
   }))
-  return []
-}
-
-export const openaiClient = new OpenAI({ apiKey: env.OPENAI_API_KEY })
-
-const toEmbedding = async (value: string) => {
-  const res = await openaiClient.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: value,
-  })
-  return res.data[0].embedding
+  return res
 }
 
 const semanticDecisionPrompt = `
@@ -241,6 +248,29 @@ const findIngredientSemantically = async (parameters: {
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
 }
 
+const findOrCreateIngredient = async (ingredientName: string) => {
+  logger.i(`Searching for "${ingredientName}" references`)
+  const nameEmbedding = await toEmbedding(ingredientName)
+  const res = await findIngredientSemantically({ query: ingredientName, embedding: nameEmbedding })
+  if (res.data) {
+    logger.s(`Reference found for "${ingredientName}"`)
+    const ingredientFromDb = await db.ingredient.findUnique({
+      where: { id: res.data._id.$oid },
+    })
+    if (!ingredientFromDb)
+      throw new Error(
+        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
+      )
+    return { string: ingredientName, document: ingredientFromDb }
+  } else {
+    logger.i(`No reference found for "${ingredientName}": creating new database entry`)
+    const ingredientFromDb = await db.ingredient.create({
+      data: { name: ingredientName, nameEmbedding },
+    })
+    return { string: ingredientName, document: ingredientFromDb }
+  }
+}
+
 const findToolSemantically = async (parameters: {
   query: string
   embedding?: number[]
@@ -279,4 +309,27 @@ const findToolSemantically = async (parameters: {
     prompt: `Tool name: "${parameters.query}"\nClosest match: "${matchName}"`,
   })
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
+}
+
+const findOrCreateTool = async (toolName: string) => {
+  logger.i(`Searching for "${toolName}" references`)
+  const nameEmbedding = await toEmbedding(toolName)
+  const res = await findToolSemantically({ query: toolName, embedding: nameEmbedding })
+  if (res.data) {
+    logger.s(`Reference found for "${toolName}"`)
+    const toolFromDb = await db.tool.findUnique({
+      where: { id: res.data._id.$oid },
+    })
+    if (!toolFromDb)
+      throw new Error(
+        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
+      )
+    return { string: toolName, document: toolFromDb }
+  } else {
+    logger.i(`No reference found for "${toolName}": creating new database entry`)
+    const toolFromDb = await db.tool.create({
+      data: { name: toolName, nameEmbedding },
+    })
+    return { string: toolName, document: toolFromDb }
+  }
 }
