@@ -1,6 +1,7 @@
 {
   "name": "@relish/utils",
   "exports": {
+    "./ai": "./ai.ts",
     "./command": "./command.ts",
     "./logger": "./logger.ts",
     "./video": "./video.ts"
