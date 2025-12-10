@@ -11,24 +11,26 @@
 
 ## Project structure
 
-- `core`\
-  Core data models.
+- `api`\
+  A web API to control the Relish system.
+- `cli`\
+  A CLI to control the Relish system.
 - `env`\
   Handles loading and validating environment variables.
 - `ingestor`\
-  Logic to ingest data from external sources.
+  Logic to ingest data from external sources into the Relish database.
 - `modeling`\
   Simulate the evolution of recipes based on certain factors.
 - `recipe-processing`\
   Logic to parse the unstructured or semi-structured description of a recipe into a well-defined structure.
-- `shared`\
-  Shared utilities for things such as logging, running shell commands, etc.
 - `source-adapters`\
   Logic to fetch recipe data from external sources.
   - `bluesky`
   - `youtube`
 - `storage`\
-  Logic to store data in a db or in the file system.
+  Logic to store data in the db or in the file system.
+- `utils`\
+  Shared utilities for things such as logging, running shell commands, etc.
 
 ### Conventions
 

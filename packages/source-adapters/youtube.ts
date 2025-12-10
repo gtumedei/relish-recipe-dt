@@ -19,7 +19,7 @@ import dayjs from "dayjs"
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
 
 // Discard videos that score lower than the recipe likelihood (1-5 scale)
-const RECIPE_LIKELIHOOD_THRESHOLD = 1
+const RECIPE_LIKELIHOOD_THRESHOLD = 3
 
 type YoutubeSearchParameters = {
   key: string
@@ -185,8 +185,13 @@ export const youtube = {
 
     logger.i(`[${videoId}] Extracting formatted recipe...`)
     const recipe = await extractRecipe(description)
+
+    // TODO: location (+ GeoNames ID)
+
+    // TODO: language?
+
     const recipePath = join(videoDir, "recipe.json")
-    await Deno.writeTextFile(recipePath, recipe)
+    await Deno.writeTextFile(recipePath, JSON.stringify(recipe, null, 2))
     logger.i(`[${videoId}] Result saved to ${recipePath}`)
   },
 

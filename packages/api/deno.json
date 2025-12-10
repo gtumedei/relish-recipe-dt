@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "start": "deno run -A main.ts",
+    "bundle": "deno bundle --output dist/deno-cli-template.js main.ts",
+    "compile": "deno compile --output bin/deno-cli-template main.ts"
+  },
+  "imports": {
+    "~/": "./"
+  }
+}

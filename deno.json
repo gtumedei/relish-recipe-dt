@@ -1,14 +1,14 @@
 {
   "tasks": {
-    "cli:start": "cd src/cli && deno run start",
-    "cli:bundle": "cd src/cli && deno run bundle",
-    "cli:compile": "cd src/cli && deno run compile",
-    "db:prepare": "dotenv -e ./src/env/.env -- docker compose --profile setup run --rm setup-generator",
-    "db:start": "dotenv -e ./src/env/.env -- docker compose up mongod mongot -d",
-    "db:push": "cd src/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
-    "db:generate": "cd src/storage && prisma generate"
+    "cli:start": "cd packages/cli && deno run start",
+    "cli:bundle": "cd packages/cli && deno run bundle",
+    "cli:compile": "cd packages/cli && deno run compile",
+    "db:prepare": "dotenv -e ./packages/env/.env -- docker compose --profile setup run --rm setup-generator",
+    "db:start": "dotenv -e ./packages/env/.env -- docker compose up mongod mongot -d",
+    "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
+    "db:generate": "cd packages/storage && prisma generate"
   },
-  "workspace": ["./src/*"],
+  "workspace": ["./packages/*"],
   "nodeModulesDir": "auto",
   "unstable": ["detect-cjs", "sloppy-imports"],
   "imports": {
