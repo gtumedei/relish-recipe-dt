@@ -1,4 +1,16 @@
 services:
+  relish:
+    build: .
+    image: relish:latest
+    container_name: relish
+    env_file: ./packages/env/.env
+    ports:
+      - "80:8000"
+    volumes:
+      - relish_tmp_data:/app/tmp
+    networks:
+      - search-community
+
   # Service to generate keyfile and password file if they don't exist
   setup-generator:
     image: alpine:latest
@@ -99,6 +111,7 @@ services:
       start_period: 30s
 
 volumes:
+  relish_tmp_data:
   mongod_data:
   mongod_configdb:
   mongot_data:

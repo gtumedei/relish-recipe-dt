@@ -1,0 +1,16 @@
+**/.DS_Store
+**/node_modules
+**/bin
+**/dist
+**/generated
+**/*.env
+
+# Mongo stuff
+keyfile
+passwordFile
+pwfile
+
+.vscode
+Dockerfile
+README.md
+tmp
