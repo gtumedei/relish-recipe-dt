@@ -1,8 +1,7 @@
 {
   "tasks": {
-    "cli:start": "cd packages/cli && deno run start",
-    "cli:bundle": "cd packages/cli && deno run bundle",
-    "cli:compile": "cd packages/cli && deno run compile",
+    "api:start": "cd apps/api && deno run start",
+    "cli:start": "cd apps/cli && deno run start",
     "db:prepare": "dotenv -e ./packages/env/.env -- docker compose --profile setup run --rm setup-generator",
     "db:start": "dotenv -e ./packages/env/.env -- docker compose up mongod mongot -d",
     "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
@@ -22,6 +21,9 @@
     "dotenv-cli": "npm:dotenv-cli@^11.0.0",
     "openai": "npm:openai@^6.10.0",
     "zod": "npm:zod@^4.1.11"
+  },
+  "fmt": {
+    "semiColons": false
   },
   "lint": {
     "rules": {
