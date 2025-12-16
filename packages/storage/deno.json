@@ -7,7 +7,6 @@
   },
   "imports": {
     "@prisma/client": "npm:@prisma/client@^6.16.2",
-    "prisma-json-schema-generator": "npm:prisma-json-schema-generator@^5.1.5",
-    "prisma-zod-generator": "npm:prisma-zod-generator@^1.28.3"
+    "prisma": "npm:prisma@6.16.2"
   }
 }
