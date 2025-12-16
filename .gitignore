@@ -1,6 +1,9 @@
 .DS_Store
 node_modules
 tmp
+bin
+dist
+generated
 *.env
 !.env.example
 
