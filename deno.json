@@ -8,7 +8,7 @@
     "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
     "db:generate": "cd packages/storage && prisma generate"
   },
-  "workspace": ["./packages/*"],
+  "workspace": ["./apps/*", "./packages/*"],
   "nodeModulesDir": "auto",
   "unstable": ["detect-cjs", "sloppy-imports"],
   "imports": {

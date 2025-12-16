@@ -809,7 +809,7 @@
       "npm:zod@^4.1.11"
     ],
     "members": {
-      "packages/cli": {
+      "apps/cli": {
         "dependencies": [
           "jsr:@cliffy/command@1.0.0-rc.8",
           "jsr:@std/cli@^1.0.22"

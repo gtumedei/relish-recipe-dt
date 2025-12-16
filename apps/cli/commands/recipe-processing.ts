@@ -8,7 +8,7 @@ const evaluateRecipeLikelihoodCommand = new Command()
   .description(
     "Evaluate the likelihood for a social media post to be about a recipe based on its metadata."
   )
-  .type("mode", new EnumType(["text", "file"]))
+  .type("source", new EnumType(["text", "file"]))
   .option("-s, --source <source:source>", "Read metadata from text or file.", { required: true })
   .arguments("<metadata:string>")
   .action(async ({ source }, metadataOrPath) => {
@@ -23,7 +23,7 @@ const evaluateRecipeLikelihoodCommand = new Command()
 const extractRecipeCommand = new Command()
   .name("extract-recipe")
   .description("Extract a structured recipe from an unstructured body of text.")
-  .type("mode", new EnumType(["text", "file"]))
+  .type("source", new EnumType(["text", "file"]))
   .option("-s, --source <source:source>", "Read content from text or file.", { required: true })
   .arguments("<content:string>")
   .action(async ({ source }, contentOrPath) => {
