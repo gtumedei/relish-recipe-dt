@@ -1,41 +1,60 @@
 <div align="center">
 
-![](https://f003.backblazeb2.com/file/dN2jPN/relish-cover.jpg)
-
 # Relish Recipe Digital Twin
+
+![](https://f003.backblazeb2.com/file/dN2jPN/relish-cover.jpg)
 
 </div>
 
 ## Architecture diagram
 
-TODO
+<div align="center">
 
-## Project structure
+![](./docs/architecture.excalidraw.png)
 
-- **`apps`**\
-  Contains applications that can be deployed.
-  - `api`\
-    A web API to control the Relish system.
-  - `cli`\
-    A CLI to control the Relish system.
-- **`packages`**
-  Contains shared reusable libraries.
-  - `env`\
-    Handles loading and validating environment variables.
-  - `ingestor`\
-    Logic to ingest data from external sources into the Relish database.
-  - `modeling`\
-    Simulate the evolution of recipes based on certain factors.
-  - `recipe-processing`\
-    Logic to parse the unstructured or semi-structured description of a recipe into a well-defined structure.
-  - `source-adapters`\
-    Logic to fetch recipe data from external sources.
-    - `bluesky`
-    - `youtube`
-  - `storage`\
-    Logic to store data in the db or in the file system.
-  - `utils`\
-    Shared utilities for things such as logging, running shell commands, etc.
+</div>
+
+### Components
+
+- **RELISH Deno**\
+  The main RELISH system, written in TypeScript and running on Deno.
+  - **`apps`**\
+    Entrypoints to the RELISH system.
+    - `api`\
+      A web API to control the system.
+    - `cli`\
+      A CLI to control the system.
+  - **`packages`**\
+    Shared reusable libraries.
+    - `env`\
+      Handles loading and validating environment variables.
+    - `ingestor`\
+      Logic to ingest data from external sources into the RELISH database.
+    - `modeling` (placeholder)\
+      Simulate the evolution of recipes based on certain factors.
+    - `recipe-processing`\
+      Logic to parse the unstructured or semi-structured description of a recipe into a well-defined structure.
+    - `source-adapters`\
+      Logic to fetch recipe data from external sources.
+      - `bluesky` (placeholder)
+      - `youtube`
+    - `storage`\
+      Logic to store data in the db or in the file system.
+    - `utils`\
+      Shared utilities for things such as logging, running shell commands, etc.
+- **System binaries**: these must be accessible in `PATH` on the machine where **RELISH Deno** is running.
+  - **yt-dlp**: used to download videos from YouTube.
+  - **ffmpeg**: used to manipulate video files.
+  - **ffprobe**: used to get video metadata.
+- **Database**
+  - **MongoDB Community Server**: core database engine.
+  - **MongoDB Community Search**: search service based on Apache Lucene.
+- **OpenAI models**\
+  Right now the system is using the following models:
+  - **GPT-4o mini** for text generation
+  - **GPT-4.1** for image description
+  - **Whisper-1** for audio transcription
+  - **text-embedding-ada-002** to create embeddings
 
 ## Running locally
 
@@ -47,6 +66,9 @@ TODO
   - [Deno](https://deno.com/)
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp) in `PATH` to download videos from YouTube
   - [ffmpeg](https://ffmpeg.org/) and [ffprobe](https://ffmpeg.org/ffprobe.html) in `PATH` to get metadata and extract frames from videos
+
+> [!NOTE]
+> The system could theoretically run on a custom MongoDB instance instead of the Docker one configured in this repo, but that instance must support vector search indexes.
 
 ### Procedure
 

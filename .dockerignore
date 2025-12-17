@@ -11,6 +11,7 @@ passwordFile
 pwfile
 
 .vscode
+docs
 Dockerfile
 README.md
 tmp
