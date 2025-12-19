@@ -34,7 +34,6 @@ export const extractAudioFromVideo = async (args: {
   inputVideoPath: string
   outputAudioPath: string
 }) => {
-  "ffmpeg -i input_video.mp4 -q:a 0 -map a output_audio.mp3"
   return await executeCommand(
     "ffmpeg",
     "-i",

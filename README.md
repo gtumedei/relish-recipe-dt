@@ -6,6 +6,12 @@
 
 </div>
 
+[RELISH](https://relisheu.org) - *Reframing European Gastronomy Legacy through Innovation, Sustainability and Heritage*, explores how traditional European food culture can be preserved, transformed, and transmitted, particularly through recipes, using digital and AI-powered technologies.
+
+This repository implements a first digital twin for intangible cultural heritage that models food recipes as living artifacts. It virtually represents recipes and monitors their real-world preparation in near real time by analyzing YouTube videos through some kind of a *people-as-sensors* approach.
+
+The system extracts structured recipe data (ingredients, tools, steps, and more) from unstructured video content, enabling the detection of variations, trends, and changes over time, and is designed to simulate possible future recipe evolutions based on observed patterns and external factors.
+
 ## Architecture diagram
 
 <div align="center">
@@ -60,12 +66,12 @@
 
 ### Requirements
 
-- To run the whole system using Docker, you only need [Docker](https://www.docker.com/) (obv).
+- To run the whole system using Docker, you only need [Docker](https://www.docker.com/) (obviously).
 - Alternatively, you can run the database using Docker and the rest of the system locally, which is handy for development. In this case, you're going to need:
   - [Docker](https://www.docker.com/)
   - [Deno](https://deno.com/)
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp) in `PATH` to download videos from YouTube
-  - [ffmpeg](https://ffmpeg.org/) and [ffprobe](https://ffmpeg.org/ffprobe.html) in `PATH` to get metadata and extract frames from videos
+  - [ffmpeg](https://ffmpeg.org/) and [ffprobe](https://ffmpeg.org/ffprobe.html) in `PATH` to get metadata and process videos
 
 > [!NOTE]
 > The system could theoretically run on a custom MongoDB instance instead of the Docker one configured in this repo, but that instance must support vector search indexes.

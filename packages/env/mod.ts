@@ -8,7 +8,6 @@ const EnvSchema = z.object({
   MONGOT_PASSWORD: z.string().min(1),
   YOUTUBE_API_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
-  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
   GEONAMES_USERNAME: z.string().min(1),
 })
 
