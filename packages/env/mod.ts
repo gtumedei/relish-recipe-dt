@@ -11,8 +11,8 @@ const EnvSchema = z.object({
   GEONAMES_USERNAME: z.string().min(1),
 })
 
-const rawEnv = await load({ envPath: join(import.meta.dirname ?? "./", ".env"), export: true })
-const parsedEnv = EnvSchema.safeParse(rawEnv)
+await load({ envPath: join(import.meta.dirname ?? "./", ".env"), export: true })
+const parsedEnv = EnvSchema.safeParse(Deno.env.toObject())
 
 if (parsedEnv.success === false) {
   console.error(`Invalid environment variables\n${z.prettifyError(parsedEnv.error)}`)
