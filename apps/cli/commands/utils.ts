@@ -1,4 +1,5 @@
 import { Command } from "@cliffy/command"
+import { db } from "@relish/storage"
 import {
   describeVideo,
   describeVideoFrames,
@@ -50,7 +51,7 @@ const transcribeAudioCommand = new Command()
   .option("--outtext <value:string>", "Path to save the output transcription as plaintext.")
   .option(
     "--outjson <value:string>",
-    "Path to save the output transcription as JSON with timestamps."
+    "Path to save the output transcription as JSON with timestamps.",
   )
   .arguments("<audio-path:string>")
   .action(async ({ outtext, outjson }, audioPath) => {
@@ -73,11 +74,11 @@ const transcribeAudioCommand = new Command()
 const describeVideoFramesCommand = new Command()
   .name("describe-frames")
   .description(
-    "Describe a video based on its frames. The framesdir argument must point to a directory containing one image for each frame, with the name frame-XXXX.png, where XXXX is the second corresponding to the frame."
+    "Describe a video based on its frames. The framesdir argument must point to a directory containing one image for each frame, with the name frame-XXXX.png, where XXXX is the second corresponding to the frame.",
   )
   .option(
     "-o --outfile <value:string>",
-    "Path to save the output description as JSON with timestamps."
+    "Path to save the output description as JSON with timestamps.",
   )
   .arguments("<framesdir:string>")
   .action(async ({ outfile }, framesDir) => {
@@ -97,7 +98,7 @@ const describeVideoFramesCommand = new Command()
 const describeVideoCommand = new Command()
   .name("describe-video")
   .description(
-    "Produce an accurate video description based on its captions, audio transcription and visual frames description."
+    "Produce an accurate video description based on its captions, audio transcription and visual frames description.",
   )
   .option("-o --outfile <value:string>", "Path to save the output description as plaintext.")
   .arguments("<captions-file:string> <transcription-file:string> <description-file:string>")
@@ -132,6 +133,22 @@ const videoCommand = new Command()
   .command(describeVideoFramesCommand.getName(), describeVideoFramesCommand)
   .command(describeVideoCommand.getName(), describeVideoCommand)
 
+const healthcheckCommand = new Command()
+  .name("healthcheck")
+  .description("Check the health status of the system")
+  .action(async () => {
+    // Check database connection
+    try {
+      const ingredients = await db.ingredient.findMany({ take: 10 })
+      console.log(
+        `${c.green("✓")} Database healthy (fetched ${ingredients.length} sample ingredients)`,
+      )
+    } catch (e) {
+      console.error(`${c.red("x")} Database healthcheck failed with the following error:\n`)
+      console.error(e)
+    }
+  })
+
 export const utilsCommand = new Command()
   .name("utils")
   .description("Various utility functions.")
@@ -139,3 +156,4 @@ export const utilsCommand = new Command()
     console.log(utilsCommand.getHelp())
   })
   .command(videoCommand.getName(), videoCommand)
+  .command(healthcheckCommand.getName(), healthcheckCommand)
