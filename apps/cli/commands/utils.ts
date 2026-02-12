@@ -1,5 +1,6 @@
 import { Command } from "@cliffy/command"
 import { db } from "@relish/storage"
+import { toEmbedding } from "@relish/utils/ai"
 import {
   describeVideo,
   describeVideoFrames,
@@ -136,16 +137,71 @@ const videoCommand = new Command()
 const healthcheckCommand = new Command()
   .name("healthcheck")
   .description("Check the health status of the system")
-  .action(async () => {
+  .option("-s, --semantic-search", "Test semantic search.", { default: false })
+  .action(async ({ semanticSearch }) => {
     // Check database connection
+    let ingredients: any[] = []
     try {
-      const ingredients = await db.ingredient.findMany({ take: 10 })
+      ingredients = await db.ingredient.findMany({ take: 10 })
       console.log(
         `${c.green("✓")} Database healthy (fetched ${ingredients.length} sample ingredients)`,
       )
     } catch (e) {
       console.error(`${c.red("x")} Database healthcheck failed with the following error:\n`)
       console.error(e)
+    }
+    // Insert a sample ingredient if the collection is empty
+    if (semanticSearch) {
+      let ingredientId: string | null = null
+      try {
+        if (ingredients.length == 0) {
+          const ingredientName = "tomato"
+          ingredientId = (
+            await db.ingredient.create({
+              data: {
+                name: ingredientName,
+                nameEmbedding: await toEmbedding(ingredientName),
+              },
+            })
+          ).id
+          console.log(c.gray("  Inserted sample ingredient"))
+          console.log(c.gray("  Waiting 2000ms for the document to be available for vector search"))
+          await new Promise((r) => setTimeout(r, 2000))
+        }
+        // Test semantic search
+        const res = await db.ingredient.aggregateRaw({
+          pipeline: [
+            {
+              $vectorSearch: {
+                index: "Ingredient_nameEmbedding_vector_index",
+                path: "nameEmbedding",
+                queryVector: await toEmbedding("pomodoro"),
+                numCandidates: 200,
+                limit: 5,
+              },
+            },
+            {
+              $project: {
+                name: 1,
+                score: { $meta: "vectorSearchScore" },
+              },
+            },
+          ],
+        })
+        if (!Array.isArray(res) || res.length == 0) throw new Error("No ingredients found")
+        console.log(
+          `${c.green("✓")} Semantic search healthy (searched for "pomodoro" and got "${res[0].name}" with a score of ${res[0].score})`,
+        )
+      } catch (e) {
+        console.error(`${c.red("x")} Semantic search failed with the following error:\n`)
+        console.error(e)
+      } finally {
+        // Delete sample ingredient
+        if (ingredientId !== null) {
+          await db.ingredient.delete({ where: { id: ingredientId } })
+          console.log(c.gray("  Deleted sample ingredient"))
+        }
+      }
     }
   })
 
