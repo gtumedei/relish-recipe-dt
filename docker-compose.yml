@@ -14,45 +14,9 @@ services:
       - relish_tmp_data:/app/tmp
     networks:
       - relish-net
-
-  # Service to generate keyfile and password file if they don't exist
-  setup-generator:
-    image: alpine:latest
-    container_name: setup-generator
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
-    environment:
-      - MONGOT_PASSWORD=${MONGOT_PASSWORD:?Missing MONGOT_PASSWORD}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}
-    command: >
-      sh -c "
-        echo 'Setting up security files...';
-        echo 'Admin password: [HIDDEN]';
-        echo 'Mongot password: [HIDDEN]';
-
-        # Generate keyfile if it doesn't exist
-        if [ ! -f keyfile ]; then
-          echo 'Generating keyfile...';
-          apk add --no-cache openssl;
-          openssl rand -base64 756 > keyfile;
-          chmod 400 keyfile;
-          echo 'Keyfile generated successfully';
-        else
-          echo 'Keyfile already exists, skipping generation';
-        fi;
-
-        # Create password file with specified password
-        echo 'Creating password file...';
-        echo -n "$MONGOT_PASSWORD" > passwordFile;
-        chmod 600 passwordFile;
-        echo 'Password file created successfully';
-
-        echo 'Setup completed successfully';
-      "
-    restart: "no"
-    profiles:
-      - setup
+    depends_on:
+      relish-db-push:
+        condition: service_completed_successfully
 
   mongod:
     image: mongodb/mongodb-community-server:latest
@@ -113,6 +77,67 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Service to generate keyfile and password file if they don't exist
+  relish-setup-generator:
+    image: alpine:latest
+    container_name: relish-setup-generator
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    environment:
+      - MONGOT_PASSWORD=${MONGOT_PASSWORD:?Missing MONGOT_PASSWORD}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}
+    command: >
+      sh -c "
+        echo 'Setting up security files...';
+        echo 'Admin password: [HIDDEN]';
+        echo 'Mongot password: [HIDDEN]';
+
+        # Generate keyfile if it doesn't exist
+        if [ ! -f keyfile ]; then
+          echo 'Generating keyfile...';
+          apk add --no-cache openssl;
+          openssl rand -base64 756 > keyfile;
+          chmod 400 keyfile;
+          echo 'Keyfile generated successfully';
+        else
+          echo 'Keyfile already exists, skipping generation';
+        fi;
+
+        # Create password file with specified password
+        echo 'Creating password file...';
+        echo -n "$MONGOT_PASSWORD" > passwordFile;
+        chmod 600 passwordFile;
+        echo 'Password file created successfully';
+
+        echo 'Setup completed successfully';
+      "
+    restart: "no"
+    profiles:
+      - setup
+
+  # Service to setup the database using Prisma
+  relish-db-push:
+    build: .
+    image: relish:latest
+    container_name: relish-db-push
+    command: >
+      sh -c "
+        cd ../..
+        deno task db:push
+      "
+    env_file:
+      - ./packages/env/.env
+    # The container's database URL must use the MongoDB container name
+    environment:
+      - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
+    networks:
+      - relish-net
+    depends_on:
+      mongot:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   relish_tmp_data:

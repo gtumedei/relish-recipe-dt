@@ -7,7 +7,7 @@
     "db:prepare": "docker compose --env-file ./packages/env/.env --profile setup run --rm setup-generator",
     "db:start": "docker compose --env-file ./packages/env/.env up mongod mongot -d",
     "db:stop": "docker compose stop mongod mongot",
-    "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
+    "db:push": "cd packages/storage && deno run -A --env-file=../env/.env ../../node_modules/.bin/prisma db push && deno run -A create-vector-indexes.ts",
     "db:generate": "cd packages/storage && prisma generate",
     "check": "deno check -q; echo; deno lint -q"
   },
@@ -22,7 +22,6 @@
     "@std/path": "jsr:@std/path@^1.1.2",
     "ai": "npm:ai@^5.0.59",
     "dayjs": "npm:dayjs@^1.11.18",
-    "dotenv-cli": "npm:dotenv-cli@^11.0.0",
     "openai": "npm:openai@^6.10.0",
     "zod": "npm:zod@^4.1.11"
   },
