@@ -78,10 +78,36 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
 
 ### Procedure
 
-**Fully on Docker**
+**Preliminary steps**
 
-TODO
+- Clone this repo
+- Create a `.env` file under `packages/env` and fill it in with the required variables (see `.env.example`)
+- Generate security files (keyfile and passwordFile) using Docker
+  ```bash
+  # You can use this shorthand if Deno is installed
+  deno task db:prepare
+  # Or the full command otherwise
+  docker compose --env-file ./packages/env/.env --profile setup run --rm setup-generator
+  ```
 
-**Only the database on Docker**
+**Option a. Fully on Docker**
 
-TODO
+Run the following commands:
+
+```bash
+# You can use this shorthand if Deno is installed
+deno task sys:up
+# Or the full command otherwise
+docker compose --env-file ./packages/env/.env up relish mongod mongot --build -d
+```
+
+**Option b. Only the database on Docker**
+
+Run the following commands:
+
+```bash
+# Start Mongo using Docker
+deno task db:start
+# Push the database schema
+deno task db:push
+```

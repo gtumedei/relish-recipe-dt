@@ -4,7 +4,7 @@ tmp
 bin
 dist
 generated
-*.env
+*.env*
 !.env.example
 
 # Mongo stuff

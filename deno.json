@@ -1,9 +1,11 @@
 {
   "tasks": {
-    "api:start": "cd apps/api && deno run start",
-    "cli:start": "cd apps/cli && deno run start",
-    "db:prepare": "dotenv -e ./packages/env/.env -- docker compose --profile setup run --rm setup-generator",
-    "db:start": "dotenv -e ./packages/env/.env -- docker compose up mongod mongot -d",
+    "api:start": "cd apps/api && deno task start",
+    "cli:start": "cd apps/cli && deno task start",
+    "sys:up": "docker compose --env-file ./packages/env/.env up relish mongod mongot --build -d",
+    "sys:down": "docker compose --env-file ./packages/env/.env down",
+    "db:prepare": "docker compose --env-file ./packages/env/.env --profile setup run --rm setup-generator",
+    "db:start": "docker compose --env-file ./packages/env/.env up mongod mongot -d",
     "db:stop": "docker compose stop mongod mongot",
     "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
     "db:generate": "cd packages/storage && prisma generate",
