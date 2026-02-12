@@ -5,7 +5,8 @@
     "db:prepare": "dotenv -e ./packages/env/.env -- docker compose --profile setup run --rm setup-generator",
     "db:start": "dotenv -e ./packages/env/.env -- docker compose up mongod mongot -d",
     "db:push": "cd packages/storage && dotenv -e ../env/.env -- prisma db push && deno run -A create-vector-indexes.ts",
-    "db:generate": "cd packages/storage && prisma generate"
+    "db:generate": "cd packages/storage && prisma generate",
+    "check": "deno check -q; echo; deno lint -q"
   },
   "workspace": ["./apps/*", "./packages/*"],
   "nodeModulesDir": "auto",
@@ -27,7 +28,7 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any"]
+      "exclude": ["no-explicit-any", "no-slow-types"]
     }
   }
 }
