@@ -9,7 +9,7 @@ services:
     volumes:
       - relish_tmp_data:/app/tmp
     networks:
-      - search-community
+      - relish-net
 
   # Service to generate keyfile and password file if they don't exist
   setup-generator:
@@ -61,7 +61,7 @@ services:
     command: >-
       mongod
       --config /etc/mongod.conf
-      --replSetMember=mongod.search-community:27017
+      --replSetMember=mongod.relish-net:27017
     ports:
       - "27017:27017"
     volumes:
@@ -71,7 +71,7 @@ services:
       - ./keyfile:/keyfile:ro
       - ./mongo-config/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
     networks:
-      - search-community
+      - relish-net
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -91,7 +91,7 @@ services:
       - ./mongo-config/mongot.conf:/mongot-community/config.default.yml:ro
       - ./passwordFile:/passwordFile:ro
     networks:
-      - search-community
+      - relish-net
     depends_on:
       mongod:
         condition: service_healthy
@@ -103,7 +103,7 @@ services:
           "--quiet",
           "--tries=1",
           "--spider",
-          "http://relish-mongot.search-community:9946/metrics",
+          "http://relish-mongot.relish-net:9946/metrics",
         ]
       interval: 10s
       timeout: 5s
@@ -117,5 +117,5 @@ volumes:
   mongot_data:
 
 networks:
-  search-community:
-    name: search-community
+  relish-net:
+    name: relish-net
