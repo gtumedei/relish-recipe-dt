@@ -5,24 +5,25 @@ import { describeRoute, openAPIRouteHandler } from "hono-openapi"
 import { cors } from "hono/cors"
 import { serveStatic } from "hono/deno"
 import { logger } from "hono/logger"
-import { text } from "~/lib/openapi-utils.ts"
+import { apiKeyAuth } from "~/lib/auth.ts"
+import { security, text } from "~/lib/openapi-utils.ts"
 
 const app = new Hono()
 
 app.use(logger())
 app.use(cors())
 
+app.use("/api/*", apiKeyAuth)
+
 app.get(
-  "/",
+  "/api/key",
   describeRoute({
-    tags: ["Home"],
+    tags: ["API key"],
     responses: {
       200: text({ description: "Hello world route" }),
     },
   }),
-  (c) => {
-    return c.text("Hello Hono!")
-  },
+  (c) => c.json({ key: c.get("apiKey") }),
 )
 
 app.get(
@@ -34,12 +35,12 @@ app.get(
         version: "0.1.0",
         description: "API server for  the RELISH Recipe Digital Twin.",
       },
-      /* components: {
+      components: {
         securitySchemes: {
-          basicAuth: { type: "http", scheme: "basic" },
+          bearerAuth: { type: "http", scheme: "bearer" },
         },
       },
-      security: security.basicAuth, */
+      security: security.bearerAuth,
     },
   }),
 )

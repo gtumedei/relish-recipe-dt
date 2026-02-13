@@ -3,7 +3,7 @@ import z, { ZodType } from "zod"
 
 export const security = {
   none: [{}],
-  basicAuth: [{ basicAuth: [] }],
+  bearerAuth: [{ bearerAuth: [] }],
 }
 
 export const text = (params: { description: string }) => ({

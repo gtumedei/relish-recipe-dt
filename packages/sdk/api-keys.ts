@@ -12,6 +12,9 @@ const CollectionAccessSchema = z.array(
   }),
 )
 
+export type ProtectedCollection = z.infer<typeof CollectionAccessSchema>[number]["collection"]
+export type AccessRule = z.infer<typeof CollectionAccessSchema>[number]["rules"][number]
+
 export const apiKeys = {
   list: async () => {
     const keys = await db.apiKey.findMany()
