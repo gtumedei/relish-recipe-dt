@@ -14,7 +14,9 @@
     "jsr:@std/internal@^1.0.9": "1.0.10",
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/path@^1.1.2": "1.1.2",
-    "jsr:@std/text@~1.0.7": "1.0.16",
+    "jsr:@std/regexp@^1.0.1": "1.0.1",
+    "jsr:@std/text@^1.0.17": "1.0.17",
+    "jsr:@std/text@~1.0.7": "1.0.17",
     "npm:@ai-sdk/google@^2.0.17": "2.0.24_zod@4.3.6",
     "npm:@ai-sdk/openai@^2.0.44": "2.0.56_zod@4.3.6",
     "npm:@hono/standard-validator@~0.2.2": "0.2.2_@standard-schema+spec@1.0.0_hono@4.11.9",
@@ -27,6 +29,7 @@
     "npm:dayjs@^1.11.18": "1.11.18",
     "npm:hono-openapi@^1.2.0": "1.2.0_@hono+standard-validator@0.2.2__@standard-schema+spec@1.0.0__hono@4.11.9_@standard-community+standard-json@0.3.5__@standard-schema+spec@1.0.0__@types+json-schema@7.0.15__quansync@0.2.11__zod@4.3.6_@standard-community+standard-openapi@0.2.9__@standard-community+standard-json@0.3.5___@standard-schema+spec@1.0.0___@types+json-schema@7.0.15___quansync@0.2.11___zod@4.3.6__@standard-schema+spec@1.0.0__openapi-types@12.1.3__zod@4.3.6__@types+json-schema@7.0.15_@types+json-schema@7.0.15_hono@4.11.9_openapi-types@12.1.3_zod@4.3.6",
     "npm:hono@^4.11.9": "4.11.9",
+    "npm:nanoid@^5.1.6": "5.1.6",
     "npm:openai@^6.10.0": "6.10.0_zod@4.3.6",
     "npm:prisma@6.16.2": "6.16.2",
     "npm:sharp@~0.34.4": "0.34.4",
@@ -41,13 +44,13 @@
         "jsr:@cliffy/internal",
         "jsr:@cliffy/table",
         "jsr:@std/fmt@~1.0.2",
-        "jsr:@std/text"
+        "jsr:@std/text@~1.0.7"
       ]
     },
     "@cliffy/flags@1.0.0-rc.8": {
       "integrity": "0f1043ce6ef037ba1cb5fe6b1bcecb25dc2f29371a1c17f278ab0f45e4b6f46c",
       "dependencies": [
-        "jsr:@std/text"
+        "jsr:@std/text@~1.0.7"
       ]
     },
     "@cliffy/internal@1.0.0-rc.8": {
@@ -84,8 +87,17 @@
         "jsr:@std/internal@^1.0.10"
       ]
     },
+    "@std/regexp@1.0.1": {
+      "integrity": "5179d823465085c5480dafb44438466e83c424fadc61ba31f744050ecc0f596d"
+    },
     "@std/text@1.0.16": {
       "integrity": "ddb9853b75119a2473857d691cf1ec02ad90793a2e8b4a4ac49d7354281a0cf8"
+    },
+    "@std/text@1.0.17": {
+      "integrity": "4b2c4ef67ae5b6c1dfd447c81c83a43718f52e3c7e748d8b33f694aba9895f95",
+      "dependencies": [
+        "jsr:@std/regexp"
+      ]
     }
   },
   "npm": {
@@ -696,6 +708,7 @@
       "jsr:@std/fmt@^1.0.8",
       "jsr:@std/fs@^1.0.19",
       "jsr:@std/path@^1.1.2",
+      "jsr:@std/text@^1.0.17",
       "npm:@ai-sdk/google@^2.0.17",
       "npm:@ai-sdk/openai@^2.0.44",
       "npm:ai@^5.0.59",
@@ -724,6 +737,11 @@
           "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/path@^1.1.2",
           "npm:zod@^4.1.9"
+        ]
+      },
+      "packages/sdk": {
+        "dependencies": [
+          "npm:nanoid@^5.1.6"
         ]
       },
       "packages/storage": {

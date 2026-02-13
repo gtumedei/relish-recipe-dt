@@ -101,7 +101,7 @@ const describeVideoCommand = new Command()
   .description(
     "Produce an accurate video description based on its captions, audio transcription and visual frames description.",
   )
-  .option("-o --outfile <value:string>", "Path to save the output description as plaintext.")
+  .option("-o, --outfile <value:string>", "Path to save the output description as plaintext.")
   .arguments("<captions-file:string> <transcription-file:string> <description-file:string>")
   .action(async ({ outfile }, captionsFile, transcriptionFile, descriptionFile) => {
     const spinner = new Spinner({ message: "Describing video...", color: "blue" })

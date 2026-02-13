@@ -20,6 +20,7 @@
     "@std/fmt": "jsr:@std/fmt@^1.0.8",
     "@std/fs": "jsr:@std/fs@^1.0.19",
     "@std/path": "jsr:@std/path@^1.1.2",
+    "@std/text": "jsr:@std/text@^1.0.17",
     "ai": "npm:ai@^5.0.59",
     "dayjs": "npm:dayjs@^1.11.18",
     "openai": "npm:openai@^6.10.0",
