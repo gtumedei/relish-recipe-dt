@@ -150,11 +150,11 @@ model ApiKey {
 }
 
 type CollectionAccess {
-  collection  String
-  permissions Permission[]
+  collection String
+  rules      AccessRule[]
 }
 
-enum Permission {
+enum AccessRule {
   CREATE
   READ
   UPDATE

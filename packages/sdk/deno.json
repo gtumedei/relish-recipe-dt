@@ -2,6 +2,7 @@
   "name": "@relish/sdk",
   "exports": "./mod.ts",
   "imports": {
+    "nanoid": "npm:nanoid@^5.1.6",
     "~/": "./"
   }
 }
