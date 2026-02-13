@@ -1,30 +1,24 @@
 import { Scalar } from "@scalar/hono-api-reference"
 import { blue } from "@std/fmt/colors"
 import { Hono } from "hono"
-import { describeRoute, openAPIRouteHandler } from "hono-openapi"
+import { openAPIRouteHandler } from "hono-openapi"
 import { cors } from "hono/cors"
 import { serveStatic } from "hono/deno"
 import { logger } from "hono/logger"
 import { apiKeyAuth } from "~/lib/auth.ts"
-import { security, text } from "~/lib/openapi-utils.ts"
+import { security } from "~/lib/openapi-utils.ts"
+import { apiKeyRoutes } from "~/routes/api-keys.ts"
 
 const app = new Hono()
 
 app.use(logger())
 app.use(cors())
 
+app.get("/", (c) => c.text("Visit /scalar for the API reference."))
+
 app.use("/api/*", apiKeyAuth)
 
-app.get(
-  "/api/key",
-  describeRoute({
-    tags: ["API key"],
-    responses: {
-      200: text({ description: "Hello world route" }),
-    },
-  }),
-  (c) => c.json({ key: c.get("apiKey") }),
-)
+app.route("/api/keys", apiKeyRoutes)
 
 app.get(
   "/docs",

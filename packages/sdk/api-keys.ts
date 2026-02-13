@@ -3,7 +3,7 @@ import { nanoid } from "nanoid"
 import z from "zod"
 import { SdkError } from "~/error.ts"
 
-const CollectionAccessSchema = z.array(
+export const CollectionAccessSchema = z.array(
   z.object({
     collection: z.enum(["Dish", "Recipe", "UserRecipe", "Ingredient", "Tool"]),
     rules: z.array(
