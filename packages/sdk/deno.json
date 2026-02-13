@@ -1,0 +1,7 @@
+{
+  "name": "@relish/sdk",
+  "exports": "./mod.ts",
+  "imports": {
+    "~/": "./"
+  }
+}
