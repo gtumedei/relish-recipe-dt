@@ -11,7 +11,7 @@ const EnvSchema = z.object({
   GEONAMES_USERNAME: z.string().min(1),
 })
 
-await load({ envPath: join(import.meta.dirname ?? "./", ".env"), export: true })
+await load({ envPath: join(import.meta.dirname ?? "./", "../../", ".env"), export: true })
 const parsedEnv = EnvSchema.safeParse(Deno.env.toObject())
 
 if (parsedEnv.success === false) {

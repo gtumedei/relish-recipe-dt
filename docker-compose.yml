@@ -4,7 +4,7 @@ services:
     image: relish:latest
     container_name: relish
     env_file:
-      - ./packages/env/.env
+      - .env
     # The container's database URL must use the MongoDB container name
     environment:
       - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
@@ -128,7 +128,7 @@ services:
         deno task db:push
       "
     env_file:
-      - ./packages/env/.env
+      - .env
     # The container's database URL must use the MongoDB container name
     environment:
       - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
