@@ -1,9 +1,14 @@
 {
   "tasks": {
-    "start": "deno run -A main.ts"
+    "start": "deno run -A main.ts",
+    "dev": "deno run -A --watch main.ts"
   },
   "imports": {
-    "hono": "npm:hono@^4.10.8",
+    "@hono/standard-validator": "npm:@hono/standard-validator@^0.2.2",
+    "@hono/zod-openapi": "npm:@hono/zod-openapi@^1.2.1",
+    "@scalar/hono-api-reference": "npm:@scalar/hono-api-reference@^0.9.40",
+    "hono": "npm:hono@^4.11.9",
+    "hono-openapi": "npm:hono-openapi@^1.2.0",
     "~/": "./"
   }
 }
