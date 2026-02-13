@@ -9,8 +9,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Related recipes
-// Recipe versions
+// ---
+// Core collections
+// ---
 
 model Dish {
   id              String         @id @default(auto()) @map("_id") @db.ObjectId
@@ -133,4 +134,51 @@ enum MediaType {
   VIDEO
   AUDIO
   DOCUMENT
+}
+
+// ---
+// Utility collections
+// ---
+
+model ApiKey {
+  id        String             @id @default(auto()) @map("_id") @db.ObjectId
+  key       String             @unique
+  name      String
+  access    CollectionAccess[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+type CollectionAccess {
+  collection  String
+  permissions Permission[]
+}
+
+enum Permission {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  TASKS
+}
+
+model Task {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  status      TaskStatus
+  logs        LogEntry[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  completedAt DateTime?
+}
+
+enum TaskStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+type LogEntry {
+  timestamp DateTime
+  payload   String[]
 }
