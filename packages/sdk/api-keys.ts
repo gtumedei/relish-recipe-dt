@@ -5,7 +5,7 @@ import { SdkError } from "~/error.ts"
 
 export const CollectionAccessSchema = z.array(
   z.object({
-    collection: z.enum(["Dish", "Recipe", "UserRecipe", "Ingredient", "Tool"]),
+    collection: z.enum(["Dish", "Recipe", "RecipeInstance", "Ingredient", "Tool"]),
     rules: z.array(
       z.enum(["CREATE", "READ", "UPDATE", "DELETE", "TASKS"] satisfies $Enums.AccessRule[]),
     ),
@@ -20,6 +20,7 @@ export const apiKeys = {
     const keys = await db.apiKey.findMany()
     return keys
   },
+
   create: async (params: { data: Pick<ApiKey, "name" | "access"> }) => {
     if (!CollectionAccessSchema.safeParse(params.data.access))
       throw new SdkError({ code: "BAD_REQUEST", message: "Invalid collection access object" })
@@ -28,11 +29,13 @@ export const apiKeys = {
     })
     return key
   },
+
   get: async (params: { key: string }) => {
     const key = await db.apiKey.findUnique({ where: { key: params.key } })
     if (!key) throw new SdkError({ code: "NOT_FOUND" })
     return key
   },
+
   update: async (params: { key: string; data: Pick<ApiKey, "name" | "access"> }) => {
     const key = await db.apiKey.findUnique({ where: { key: params.key } })
     if (!key) throw new SdkError({ code: "NOT_FOUND" })
@@ -44,6 +47,7 @@ export const apiKeys = {
     })
     return updatedKey
   },
+
   delete: async (params: { key: string }) => {
     const key = await db.apiKey.findUnique({ where: { key: params.key } })
     if (!key) throw new SdkError({ code: "NOT_FOUND" })

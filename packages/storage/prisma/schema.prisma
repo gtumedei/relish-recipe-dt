@@ -14,16 +14,16 @@ datasource db {
 // ---
 
 model Dish {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  name            String         @unique
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  name            String           @unique
   nameEmbedding   Float[]
   description     String
   recipes         Recipe[]
   media           Media[]
   searchMetadata  SearchMetadata
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  recipeInstances UserRecipe[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  recipeInstances RecipeInstance[]
 }
 
 model Recipe {
@@ -39,7 +39,7 @@ model Recipe {
   updatedAt        DateTime        @updatedAt
 }
 
-model UserRecipe {
+model RecipeInstance {
   id               String              @id @default(auto()) @map("_id") @db.ObjectId
   dishId           String              @db.ObjectId
   dish             Dish                @relation(fields: [dishId], references: [id])
@@ -119,10 +119,10 @@ type Location {
 }
 
 model ProcessedUrl {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  url         String       @unique
-  userRecipes UserRecipe[]
-  createdAt   DateTime     @default(now())
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  url             String           @unique
+  recipeInstances RecipeInstance[]
+  createdAt       DateTime         @default(now())
 }
 
 type SearchMetadata {
