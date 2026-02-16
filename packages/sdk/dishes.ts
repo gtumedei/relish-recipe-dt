@@ -1,11 +1,47 @@
 import { db, type Dish, type Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { SdkError } from "~/error.ts"
+import { type ListResult, PAGE_SIZE } from "~/shared.ts"
+
+export type DishListParams = {
+  page?: number
+  order?: Prisma.SortOrder
+  sort?: "name" | "createdAt"
+  filter?: {
+    name?: string
+  }
+}
 
 export const dishes = {
-  list: async () => {
-    const items = await db.dish.findMany()
-    return items
+  list: async (params?: DishListParams): Promise<ListResult<Dish>> => {
+    const page = Math.max(1, Math.floor(params?.page ?? 1))
+    const order = params?.order ?? "desc"
+    const sort = params?.sort ?? "createdAt"
+
+    const where: Prisma.DishWhereInput = {}
+    if (params?.filter?.name?.trim()) {
+      where.name = { contains: params.filter.name.trim() }
+    }
+
+    const primaryOrderBy: Prisma.DishOrderByWithRelationInput =
+      sort === "name" ? { name: order } : { createdAt: order }
+
+    const [totalItemCount, items] = await Promise.all([
+      db.dish.count({ where }),
+      db.dish.findMany({
+        where,
+        orderBy: [primaryOrderBy, { id: "asc" }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ])
+
+    return {
+      items,
+      page,
+      pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
+      totalItemCount,
+    }
   },
 
   create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {

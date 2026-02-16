@@ -1,11 +1,43 @@
 import { db, type Prisma, type Tool } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { SdkError } from "~/error.ts"
+import { type ListResult, PAGE_SIZE } from "~/shared.ts"
+
+export type ToolListParams = {
+  page?: number
+  order?: Prisma.SortOrder
+  sort?: "createdAt"
+  filter?: {
+    name?: string
+  }
+}
 
 export const tools = {
-  list: async () => {
-    const items = await db.tool.findMany()
-    return items
+  list: async (params?: ToolListParams): Promise<ListResult<Tool>> => {
+    const page = Math.max(1, Math.floor(params?.page ?? 1))
+    const order = params?.order ?? "desc"
+
+    const where: Prisma.ToolWhereInput = {}
+    if (params?.filter?.name?.trim()) {
+      where.name = { contains: params.filter.name.trim() }
+    }
+
+    const [totalItemCount, items] = await Promise.all([
+      db.tool.count({ where }),
+      db.tool.findMany({
+        where,
+        orderBy: [{ createdAt: order }, { id: "asc" }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ])
+
+    return {
+      items,
+      page,
+      pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
+      totalItemCount,
+    }
   },
 
   create: async (params: { data: Omit<Prisma.ToolCreateInput, "nameEmbedding"> }) => {

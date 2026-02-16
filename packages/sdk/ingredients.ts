@@ -1,11 +1,43 @@
 import { db, type Ingredient, type Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { SdkError } from "~/error.ts"
+import { type ListResult, PAGE_SIZE } from "~/shared.ts"
+
+export type IngredientListParams = {
+  page?: number
+  order?: Prisma.SortOrder
+  sort?: "createdAt"
+  filter?: {
+    name?: string
+  }
+}
 
 export const ingredients = {
-  list: async () => {
-    const items = await db.ingredient.findMany()
-    return items
+  list: async (params?: IngredientListParams): Promise<ListResult<Ingredient>> => {
+    const page = Math.max(1, Math.floor(params?.page ?? 1))
+    const order = params?.order ?? "desc"
+
+    const where: Prisma.IngredientWhereInput = {}
+    if (params?.filter?.name?.trim()) {
+      where.name = { contains: params.filter.name.trim() }
+    }
+
+    const [totalItemCount, items] = await Promise.all([
+      db.ingredient.count({ where }),
+      db.ingredient.findMany({
+        where,
+        orderBy: [{ createdAt: order }, { id: "asc" }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ])
+
+    return {
+      items,
+      page,
+      pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
+      totalItemCount,
+    }
   },
 
   create: async (params: { data: Omit<Prisma.IngredientCreateInput, "nameEmbedding"> }) => {
