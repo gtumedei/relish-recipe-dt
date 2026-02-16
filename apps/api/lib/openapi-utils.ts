@@ -37,3 +37,10 @@ export const validationError = {
     "application/json": { schema: resolver(ValidatorErrorSchema) },
   },
 }
+
+export const sdkError = {
+  description: "Validation error",
+  content: {
+    "application/json": { schema: resolver(z.object({ error: z.string() })) },
+  },
+}

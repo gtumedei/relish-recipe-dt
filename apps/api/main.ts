@@ -8,6 +8,11 @@ import { logger } from "hono/logger"
 import { apiKeyAuth } from "~/lib/auth.ts"
 import { security } from "~/lib/openapi-utils.ts"
 import { apiKeyRoutes } from "~/routes/api-keys.ts"
+import { dishRoutes } from "~/routes/dishes.ts"
+import { ingredientRoutes } from "~/routes/ingredients.ts"
+import { recipeInstanceRoutes } from "~/routes/recipe-instances.ts"
+import { recipeRoutes } from "~/routes/recipes.ts"
+import { toolRoutes } from "~/routes/tools.ts"
 
 const app = new Hono()
 
@@ -19,6 +24,11 @@ app.get("/", (c) => c.text("Visit /scalar for the API reference."))
 app.use("/api/*", apiKeyAuth)
 
 app.route("/api/keys", apiKeyRoutes)
+app.route("/api/dishes", dishRoutes)
+app.route("/api/recipes", recipeRoutes)
+app.route("/api/recipe-instances", recipeInstanceRoutes)
+app.route("/api/ingredients", ingredientRoutes)
+app.route("/api/tools", toolRoutes)
 
 app.get(
   "/docs",

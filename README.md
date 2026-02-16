@@ -101,7 +101,7 @@ deno task sys:up
 docker compose up relish mongod mongot --build -d
 ```
 
-**Option b. Only the database on Docker**
+**Option b. Only the database on Docker** (suggested for local development)
 
 Run the following commands:
 
