@@ -13,6 +13,7 @@ import { ingredientRoutes } from "~/routes/ingredients.ts"
 import { recipeInstanceRoutes } from "~/routes/recipe-instances.ts"
 import { recipeRoutes } from "~/routes/recipes.ts"
 import { toolRoutes } from "~/routes/tools.ts"
+import { pool } from "~/tasks/pool.ts"
 
 const app = new Hono()
 
@@ -55,12 +56,15 @@ app.get(
     favicon: "/favicon.webp",
     agent: { disabled: true },
     showDeveloperTools: "never",
+    persistAuth: true,
   }),
 )
 
 app.use("/favicon.webp", serveStatic({ path: "./public/favicon.webp" }))
 
 app.notFound((c) => c.json({ message: "Not found" }, 404))
+
+pool.start()
 
 const msg = `
 🍛 Relish server started
@@ -69,4 +73,19 @@ const msg = `
    Docs:  ${blue("http://localhost:8000/scalar")}
 `
 
-Deno.serve({ onListen: () => console.log(msg) }, app.fetch)
+const ac = new AbortController()
+
+Deno.serve({ signal: ac.signal, onListen: () => console.log(msg) }, app.fetch)
+
+let shuttingDown = false
+const shutdown = async () => {
+  if (shuttingDown) return
+  shuttingDown = true
+  // Stop Hono server
+  ac.abort()
+  // Terminate worker pool
+  await pool.destroy()
+  Deno.exit(0)
+}
+Deno.addSignalListener("SIGINT", shutdown)
+Deno.addSignalListener("SIGTERM", shutdown)

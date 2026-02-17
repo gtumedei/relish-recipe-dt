@@ -5,6 +5,7 @@
     "jsr:@cliffy/flags@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/internal@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/table@1.0.0-rc.8": "1.0.0-rc.8",
+    "jsr:@poolifier/poolifier-web-worker@0.6": "0.6.0",
     "jsr:@std/cli@^1.0.22": "1.0.22",
     "jsr:@std/dotenv@~0.225.5": "0.225.5",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
@@ -61,6 +62,9 @@
       "dependencies": [
         "jsr:@std/fmt@~1.0.2"
       ]
+    },
+    "@poolifier/poolifier-web-worker@0.6.0": {
+      "integrity": "302a15b619425a33c21a37e9dd3140ee83ad65d15e350caf3be8ace1efefa039"
     },
     "@std/cli@1.0.22": {
       "integrity": "50d1e4f87887cb8a8afa29b88505ab5081188f5cad3985460c3b471fa49ff21a"
@@ -719,6 +723,7 @@
     "members": {
       "apps/api": {
         "dependencies": [
+          "jsr:@poolifier/poolifier-web-worker@0.6",
           "npm:@hono/standard-validator@~0.2.2",
           "npm:@hono/zod-openapi@^1.2.1",
           "npm:@scalar/hono-api-reference@~0.9.40",
