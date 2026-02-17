@@ -180,5 +180,13 @@ enum TaskStatus {
 
 type LogEntry {
   timestamp DateTime
+  type      LogType
   payload   String[]
+}
+
+enum LogType {
+  I
+  S
+  W
+  E
 }

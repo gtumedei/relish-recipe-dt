@@ -11,51 +11,51 @@ export type Logger = {
   w: LogFunction
   /** Log an error message. */
   e: LogFunction
-  history: {
-    i: LogHistoryEntry[]
-    s: LogHistoryEntry[]
-    w: LogHistoryEntry[]
-    e: LogHistoryEntry[]
-  }
+  history: LogHistoryEntry[]
   clearHistory: () => void
 }
 
 type LogHistoryEntry = {
   timestamp: Date
+  type: "I" | "S" | "W" | "E"
   payload: any[]
 }
 
-export const createLogger = (): Logger => {
-  const history: Logger["history"] = {
-    i: [],
-    s: [],
-    w: [],
-    e: [],
-  }
+export const createLogger = (params?: {
+  afterLog?: (entry: LogHistoryEntry) => Promise<void>
+}): Logger => {
+  let history: Logger["history"] = []
+
+  const afterLog = params?.afterLog ?? (async () => {})
 
   const logger: Logger = {
     i: (...args) => {
-      history.i.push({ timestamp: new Date(), payload: args })
+      const entry: LogHistoryEntry = { timestamp: new Date(), type: "I", payload: args }
+      history.push(entry)
       console.log(...[c.blue("[i]"), ...args])
+      afterLog(entry)
     },
     s: (...args) => {
-      history.s.push({ timestamp: new Date(), payload: args })
+      const entry: LogHistoryEntry = { timestamp: new Date(), type: "S", payload: args }
+      history.push(entry)
       console.log(...[c.green("[✓]"), ...args])
+      afterLog(entry)
     },
     w: (...args) => {
-      history.w.push({ timestamp: new Date(), payload: args })
+      const entry: LogHistoryEntry = { timestamp: new Date(), type: "W", payload: args }
+      history.push(entry)
       console.log(...[c.yellow("[!]"), ...args])
+      afterLog(entry)
     },
     e: (...args) => {
-      history.e.push({ timestamp: new Date(), payload: args })
+      const entry: LogHistoryEntry = { timestamp: new Date(), type: "E", payload: args }
+      history.push(entry)
       console.log(...[c.red("[x]"), ...args])
+      afterLog(entry)
     },
     history,
     clearHistory: () => {
-      history.i = []
-      history.s = []
-      history.w = []
-      history.e = []
+      history = []
     },
   }
 
