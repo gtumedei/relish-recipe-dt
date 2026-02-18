@@ -12,6 +12,7 @@ import { dishRoutes } from "~/routes/dishes.ts"
 import { ingredientRoutes } from "~/routes/ingredients.ts"
 import { recipeInstanceRoutes } from "~/routes/recipe-instances.ts"
 import { recipeRoutes } from "~/routes/recipes.ts"
+import { taskRoutes } from "~/routes/tasks.ts"
 import { toolRoutes } from "~/routes/tools.ts"
 import { pool } from "~/tasks/pool.ts"
 
@@ -30,6 +31,7 @@ app.route("/api/recipes", recipeRoutes)
 app.route("/api/recipe-instances", recipeInstanceRoutes)
 app.route("/api/ingredients", ingredientRoutes)
 app.route("/api/tools", toolRoutes)
+app.route("/api/tasks", taskRoutes)
 
 app.get(
   "/docs",
@@ -81,9 +83,9 @@ let shuttingDown = false
 const shutdown = async () => {
   if (shuttingDown) return
   shuttingDown = true
-  // Stop Hono server
+  console.log("Shutting down Hono server...")
   ac.abort()
-  // Terminate worker pool
+  console.log("Terminating worker pool...")
   await pool.destroy()
   Deno.exit(0)
 }
