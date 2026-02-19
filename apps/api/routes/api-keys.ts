@@ -17,7 +17,7 @@ export const apiKeyRoutes = new Hono()
   .use(describeRoute({ tags: ["API keys"] }))
 
   .get(
-    "/",
+    "/me",
     describeRoute({
       description: "Provides information about the current API key.",
       responses: {
