@@ -92,22 +92,22 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
 
 **Option a. Fully on Docker**
 
-Run the following commands:
+- Run one of the following commands:
 
-```bash
-# You can use this shorthand if Deno is installed
-deno task sys:up
-# Or the full command otherwise
-docker compose up relish mongod mongot --build -d
-```
+  ```bash
+  # You can use this shorthand if Deno is installed
+  deno task sys:up
+  # Or the full command otherwise
+  docker compose up relish mongod mongot --build -d
+  ```
 
-**Option b. Only the database on Docker** (suggested for local development)
+**Option b. Only the database on Docker** (best for local development)
 
-Run the following commands:
+- Run one of the following commands:
 
-```bash
-# Start Mongo using Docker
-deno task db:start
-# Push the database schema
-deno task db:push
-```
+  ```bash
+  # Start Mongo using Docker
+  deno task db:start
+  # Push the database schema
+  deno task db:push
+  ```
