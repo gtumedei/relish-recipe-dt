@@ -81,17 +81,21 @@ export const apiKeysCommand = new Command()
   .command(deleteKeyCommand.getName(), deleteKeyCommand)
 
 const parseAccessRuleString = (access: string) =>
-  access.split("\n").map((row) => {
-    const [collection, rules] = row.split(":")
-    return {
-      collection,
-      rules: rules.split(",").toSorted() as any,
-    }
-  })
+  access
+    .split("\n")
+    .map((row) => row.trim().replaceAll(" ", ""))
+    .filter(Boolean)
+    .map((row) => {
+      const [collection, rules] = row.split(":")
+      return {
+        collection,
+        rules: rules.split(",").toSorted() as any,
+      }
+    })
 
 const apiKeyToString = (key: ApiKey) => dedent`
   🔑 Name: ${key.name}
      Key: ${c.brightYellow(key.key)}
      Access:
-     ${key.access.map((it) => `- ${it.collection}: ${it.rules.join(", ")}`).join("\n     ")}
+     ${key.access.map((it) => `  ${it.collection}: ${it.rules.join(", ")}`).join("\n     ")}
      Created: ${key.createdAt}`
