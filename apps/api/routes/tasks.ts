@@ -41,11 +41,11 @@ export const taskRoutes = new Hono()
 
       try {
         const task = await db.task.findUnique({ where: { id: params.id } })
-        const withParsedLogs = task?.logs.map((entry) => ({
+        const parsedLogs = task?.logs.map((entry) => ({
           ...entry,
           payload: entry.payload.map((it) => JSON.parse(it)),
         }))
-        return c.json(withParsedLogs)
+        return c.json({ ...task, logs: parsedLogs })
       } catch (error) {
         return sdkErrorResponse(c, error)
       }

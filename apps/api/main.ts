@@ -1,3 +1,4 @@
+import { cleanupTmpDir } from "@relish/storage"
 import { Scalar } from "@scalar/hono-api-reference"
 import { blue } from "@std/fmt/colors"
 import { Hono } from "hono"
@@ -21,7 +22,7 @@ const app = new Hono()
 app.use(logger())
 app.use(cors())
 
-app.get("/", (c) => c.text("Visit /scalar for the API reference."))
+app.get("/", (c) => c.redirect("/scalar"))
 
 app.use("/api/*", apiKeyAuth)
 
@@ -91,3 +92,8 @@ const shutdown = async () => {
 }
 Deno.addSignalListener("SIGINT", shutdown)
 Deno.addSignalListener("SIGTERM", shutdown)
+
+// Every week at 00:00 on Sunday, cleanup temporary files and folders older than 1 week.
+Deno.cron("Temporary files cleanup", "0 0 * * 0", async () => {
+  await cleanupTmpDir({})
+})

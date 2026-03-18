@@ -1,6 +1,6 @@
 import { env } from "@relish/env"
 import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
-import { tmpDir } from "@relish/storage"
+import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
 import { logger } from "@relish/utils/logger"
 import {
@@ -36,6 +36,9 @@ type YoutubeSearchParameters = {
   relevanceLanguage?: string // http://www.loc.gov/standards/iso639-2/php/code_list.php
 }
 
+type PartialYoutubeSearchParameters = Pick<YoutubeSearchParameters, "q"> &
+  Partial<YoutubeSearchParameters>
+
 type YoutubeSearchResult = {
   kind: string
   etag: string
@@ -67,14 +70,12 @@ export const parseVideoUrlOrId = (videoURLOrID: string) => {
 
 export const youtube = {
   executeFullPipeline: async (
-    params:
-      | { data: YoutubeSearchResult }
-      | (Pick<YoutubeSearchParameters, "q"> & Partial<YoutubeSearchParameters>)
+    params: { data: YoutubeSearchResult } | PartialYoutubeSearchParameters,
   ) => {
     const data =
       "data" in params ? params.data : await youtube.findVideos({ q: "food", maxResults: "1" })
     logger.i(
-      `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`
+      `Food data fetched, ${data.items.length} records returned (${data.pageInfo.totalResults} total)`,
     )
 
     logger.i("Evaluating recipe likelihood for each video")
@@ -91,7 +92,7 @@ export const youtube = {
     }
 
     let items = data.items.map((item, i) => ({ score: scores[i], metadata: item }))
-    const filename = join(tmpDir, "youtube-scored-results.json")
+    const filename = join(TMP_DIR, "youtube-scored-results.json")
     logger.i(`Saving results to ${filename}`)
     await Deno.writeTextFile(filename, JSON.stringify(items, null, 2))
 
@@ -113,8 +114,8 @@ export const youtube = {
                 source: item.metadata.id.videoId,
                 index: i,
                 ...r,
-              } satisfies ExtractedRecipeWithMetadata)
-          )
+              }) satisfies ExtractedRecipeWithMetadata,
+          ),
         )
       } catch (e) {
         if (e instanceof CommandError) {
@@ -128,9 +129,7 @@ export const youtube = {
     return recipes
   },
 
-  findVideos: async (
-    params: Pick<YoutubeSearchParameters, "q"> & Partial<YoutubeSearchParameters>
-  ) => {
+  findVideos: async (params: PartialYoutubeSearchParameters) => {
     const defaultParams = {
       key: env.YOUTUBE_API_KEY,
       q: "food",
@@ -152,7 +151,7 @@ export const youtube = {
     const { id: videoId } = parseVideoUrlOrId(videoUrlOrId)
 
     logger.i(`[${videoId}] Downloading video...`)
-    const videoDir = join(tmpDir, videoId)
+    const videoDir = join(TMP_DIR, videoId)
     const videoPath = await youtube.downloadVideo({ videoUrlOrId, outDir: videoDir })
     const captionsPath = await youtube.downloadVideoCaptions({ videoUrlOrId, outDir: videoDir })
 
@@ -232,11 +231,11 @@ export const youtube = {
       "bestvideo[height<=480]+bestaudio/best[height<=480]",
       url,
       "-o",
-      videoPathWithGenericExtension
+      videoPathWithGenericExtension,
     )
     // Retrieve downloaded file path
     const videoFile = Array.from(Deno.readDirSync(params.outDir)).find(
-      (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name)
+      (f) => f.isFile && /\.(mp4|mkv|webm|mov|avi)$/i.test(f.name),
     )
     const videoPath = videoFile ? join(params.outDir, videoFile.name) : null
     if (!videoPath) throw new Error("Unable to retrieve the path of the downloaded video")
@@ -255,7 +254,7 @@ export const youtube = {
         "--skip-download",
         "-P",
         params.outDir,
-        url
+        url,
       )
     } catch (e) {
       if (e instanceof CommandError) console.error(e, e.stderr)
@@ -263,7 +262,7 @@ export const youtube = {
       return null
     }
     const captionsFile = Array.from(Deno.readDirSync(params.outDir)).find(
-      (f) => f.isFile && /\.(vtt)$/i.test(f.name)
+      (f) => f.isFile && /\.(vtt)$/i.test(f.name),
     )
     const captionsPath = captionsFile ? join(params.outDir, captionsFile.name) : null
     if (captionsPath) {
@@ -271,7 +270,7 @@ export const youtube = {
       const formattedCaptions = vttToJson(captions)
       await Deno.writeTextFile(
         join(params.outDir, "captions.json"),
-        JSON.stringify(formattedCaptions, null, 2)
+        JSON.stringify(formattedCaptions, null, 2),
       )
     }
     return captionsPath

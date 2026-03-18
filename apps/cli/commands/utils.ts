@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command"
-import { db } from "@relish/storage"
+import { cleanupTmpDir, db } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import {
   describeVideo,
@@ -205,6 +205,15 @@ const healthcheckCommand = new Command()
     }
   })
 
+const cleanupCommand = new Command()
+  .name("cleanup")
+  .description("Remove old temporary files")
+  .option("--max-age <value:number>", "Delete file older than <max-age> days.", { default: 7 })
+  .option("--dry-run", "Report old files without deleting them.", { default: false })
+  .action(async ({ maxAge, dryRun }) => {
+    await cleanupTmpDir({ maxAgeDays: maxAge, dryRun })
+  })
+
 export const utilsCommand = new Command()
   .name("utils")
   .description("Various utility functions.")
@@ -213,3 +222,4 @@ export const utilsCommand = new Command()
   })
   .command(videoCommand.getName(), videoCommand)
   .command(healthcheckCommand.getName(), healthcheckCommand)
+  .command(cleanupCommand.getName(), cleanupCommand)
