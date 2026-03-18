@@ -1,16 +1,11 @@
 import { ThreadWorker } from "@poolifier/poolifier-web-worker"
-import { createPersistedTaskLogger } from "~/lib/task-logger.ts"
-
-let createDbClient: typeof import("@relish/storage").createPrismaClient
+import { createWorkerContainer } from "./worker.container.ts"
 
 const workerFn = async (data?: { taskId: string }) => {
-  const mod = await import("@relish/storage")
-  createDbClient = mod.createPrismaClient
-  const db = createDbClient()
-
-  console.log("Task started")
   if (!data) throw new Error("Missing task data")
-  const logger = createPersistedTaskLogger(db, data.taskId)
+  const { logger, db } = await createWorkerContainer(data)
+
+  logger.i("Task started")
   logger.i("Test payload", data)
   // console.log("Test payload", data)
   await new Promise((r) => setTimeout(r, 5000))

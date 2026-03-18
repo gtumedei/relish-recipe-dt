@@ -4,6 +4,7 @@
     "./ai": "./ai.ts",
     "./command": "./command.ts",
     "./logger": "./logger.ts",
+    "./types": "./types.ts",
     "./video": "./video.ts"
   },
   "imports": {
