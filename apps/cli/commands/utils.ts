@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command"
-import { cleanupTmpDir, db } from "@relish/storage"
+import { cleanupTmpDir } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import {
   describeVideo,
@@ -11,6 +11,9 @@ import {
 } from "@relish/utils/video"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
+import { container } from "~/cli.container.ts"
+
+const { db } = container
 
 const getVideoDurationCommand = new Command()
   .name("get-duration")

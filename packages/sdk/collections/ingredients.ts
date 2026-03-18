@@ -1,36 +1,33 @@
-import { db, type Dish, type Prisma } from "@relish/storage"
+import type { Ingredient, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
+import type { ContainerOf } from "@relish/utils/types"
 import { SdkError } from "~/error.ts"
 import { type ListResult, PAGE_SIZE } from "~/shared.ts"
 
-export type DishListParams = {
+export type IngredientListParams = {
   page?: number
   order?: Prisma.SortOrder
-  sort?: "name" | "createdAt"
+  sort?: "createdAt"
   filter?: {
     name?: string
   }
 }
 
-export const dishes = {
-  list: async (params?: DishListParams): Promise<ListResult<Dish>> => {
+export const createIngredientsClient = ({ db }: ContainerOf<"db">) => ({
+  list: async (params?: IngredientListParams): Promise<ListResult<Ingredient>> => {
     const page = Math.max(1, Math.floor(params?.page ?? 1))
     const order = params?.order ?? "desc"
-    const sort = params?.sort ?? "createdAt"
 
-    const where: Prisma.DishWhereInput = {}
+    const where: Prisma.IngredientWhereInput = {}
     if (params?.filter?.name?.trim()) {
       where.name = { contains: params.filter.name.trim() }
     }
 
-    const primaryOrderBy: Prisma.DishOrderByWithRelationInput =
-      sort === "name" ? { name: order } : { createdAt: order }
-
     const [totalItemCount, items] = await Promise.all([
-      db.dish.count({ where }),
-      db.dish.findMany({
+      db.ingredient.count({ where }),
+      db.ingredient.findMany({
         where,
-        orderBy: [primaryOrderBy, { id: "asc" }],
+        orderBy: [{ createdAt: order }, { id: "asc" }],
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
@@ -44,43 +41,41 @@ export const dishes = {
     }
   },
 
-  create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {
+  create: async (params: { data: Omit<Prisma.IngredientCreateInput, "nameEmbedding"> }) => {
     const nameEmbedding = await toEmbedding(params.data.name)
-    const item = await db.dish.create({ data: { ...params.data, nameEmbedding } })
+    const item = await db.ingredient.create({ data: { ...params.data, nameEmbedding } })
     return item
   },
 
   get: async (params: { id: string }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
+    const item = await db.ingredient.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
     return item
   },
 
   update: async (params: {
     id: string
-    data: Omit<Prisma.DishUpdateInput, "nameEmbedding" | "name"> & {
+    data: Omit<Prisma.IngredientUpdateInput, "nameEmbedding" | "name"> & {
       name?: string
     }
   }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
+    const item = await db.ingredient.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
 
-    let data: Prisma.DishUpdateInput = params.data
+    let data: Prisma.IngredientUpdateInput = params.data
     if (params.data.name && params.data.name !== item.name) {
       const nameEmbedding = await toEmbedding(params.data.name)
       data = { ...params.data, nameEmbedding }
     }
 
-    const updatedItem = await db.dish.update({ where: { id: params.id }, data })
+    const updatedItem = await db.ingredient.update({ where: { id: params.id }, data })
     return updatedItem
   },
 
   delete: async (params: { id: string }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
+    const item = await db.ingredient.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
-    const deletedItem = await db.dish.delete({ where: { id: params.id } })
+    const deletedItem = await db.ingredient.delete({ where: { id: params.id } })
     return deletedItem
   },
-}
-
-export type { Dish }
+})

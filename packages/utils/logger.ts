@@ -61,5 +61,3 @@ export const createLogger = (params?: {
 
   return logger
 }
-
-export const logger = createLogger()

@@ -1,29 +1,28 @@
-import { db, type Prisma, type RecipeInstance } from "@relish/storage"
+import type { Prisma, Recipe } from "@relish/storage"
+import type { ContainerOf } from "@relish/utils/types"
 import { SdkError } from "~/error.ts"
 import { type ListResult, PAGE_SIZE } from "~/shared.ts"
 
-export type RecipeInstanceListParams = {
+export type RecipeListParams = {
   page?: number
   order?: Prisma.SortOrder
-  sort?: "totalPrepSeconds" | "createdAt" | "modelConfidence"
+  sort?: "totalPrepSeconds" | "createdAt"
   filter?: {
     dishId?: string
     ingredient?: string
     tool?: string
     totalPrepSecondsMin?: number
     totalPrepSecondsMax?: number
-    location?: string
-    language?: string
   }
 }
 
-export const recipeInstances = {
-  list: async (params?: RecipeInstanceListParams): Promise<ListResult<RecipeInstance>> => {
+export const createRecipesClient = ({ db }: ContainerOf<"db">) => ({
+  list: async (params?: RecipeListParams): Promise<ListResult<Recipe>> => {
     const page = Math.max(1, Math.floor(params?.page ?? 1))
     const order = params?.order ?? "desc"
     const sort = params?.sort ?? "createdAt"
 
-    const where: Prisma.RecipeInstanceWhereInput = {}
+    const where: Prisma.RecipeWhereInput = {}
     if (params?.filter?.dishId) {
       where.dishId = params.filter.dishId
     }
@@ -42,23 +41,13 @@ export const recipeInstances = {
         lte: params?.filter?.totalPrepSecondsMax,
       }
     }
-    if (params?.filter?.location?.trim()) {
-      where.location = { is: { string: { contains: params.filter.location.trim() } } }
-    }
-    if (params?.filter?.language?.trim()) {
-      where.language = params.filter.language.trim()
-    }
 
-    const primaryOrderBy: Prisma.RecipeInstanceOrderByWithRelationInput =
-      sort === "totalPrepSeconds"
-        ? { totalPrepSeconds: order }
-        : sort === "modelConfidence"
-          ? { modelConfidence: order }
-          : { createdAt: order }
+    const primaryOrderBy: Prisma.RecipeOrderByWithRelationInput =
+      sort === "totalPrepSeconds" ? { totalPrepSeconds: order } : { createdAt: order }
 
     const [totalItemCount, items] = await Promise.all([
-      db.recipeInstance.count({ where }),
-      db.recipeInstance.findMany({
+      db.recipe.count({ where }),
+      db.recipe.findMany({
         where,
         orderBy: [primaryOrderBy, { id: "asc" }],
         skip: (page - 1) * PAGE_SIZE,
@@ -74,33 +63,28 @@ export const recipeInstances = {
     }
   },
 
-  create: async (params: { data: Prisma.RecipeInstanceUncheckedCreateInput }) => {
-    const item = await db.recipeInstance.create({ data: params.data })
+  create: async (params: { data: Prisma.RecipeUncheckedCreateInput }) => {
+    const item = await db.recipe.create({ data: params.data })
     return item
   },
 
   get: async (params: { id: string }) => {
-    const item = await db.recipeInstance.findUnique({ where: { id: params.id } })
+    const item = await db.recipe.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
     return item
   },
 
-  update: async (params: { id: string; data: Prisma.RecipeInstanceUncheckedUpdateInput }) => {
-    const item = await db.recipeInstance.findUnique({ where: { id: params.id } })
+  update: async (params: { id: string; data: Prisma.RecipeUncheckedUpdateInput }) => {
+    const item = await db.recipe.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
-    const updatedItem = await db.recipeInstance.update({
-      where: { id: params.id },
-      data: params.data,
-    })
+    const updatedItem = await db.recipe.update({ where: { id: params.id }, data: params.data })
     return updatedItem
   },
 
   delete: async (params: { id: string }) => {
-    const item = await db.recipeInstance.findUnique({ where: { id: params.id } })
+    const item = await db.recipe.findUnique({ where: { id: params.id } })
     if (!item) throw new SdkError({ code: "NOT_FOUND" })
-    const deletedItem = await db.recipeInstance.delete({ where: { id: params.id } })
+    const deletedItem = await db.recipe.delete({ where: { id: params.id } })
     return deletedItem
   },
-}
-
-export type { RecipeInstance }
+})

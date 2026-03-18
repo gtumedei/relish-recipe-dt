@@ -1,14 +1,17 @@
 import { Command } from "@cliffy/command"
-import { apiKeys, SdkError } from "@relish/sdk"
-import * as c from "@std/fmt/colors"
+import { SdkError } from "@relish/sdk"
 import { ApiKey } from "@relish/storage"
+import * as c from "@std/fmt/colors"
 import { dedent } from "@std/text/unstable-dedent"
+import { container } from "~/cli.container.ts"
+
+const { sdk } = container
 
 const listKeysCommand = new Command()
   .name("list")
   .description("List API keys.")
   .action(async () => {
-    const keys = await apiKeys.list()
+    const keys = await sdk.apiKeys.list()
     console.log(keys.map((k) => apiKeyToString(k)).join("\n\n"))
   })
 
@@ -18,7 +21,7 @@ const getKeyCommand = new Command()
   .arguments("<key:string>")
   .action(async (_, key) => {
     try {
-      const res = await apiKeys.get({ key })
+      const res = await sdk.apiKeys.get({ key })
       console.dir(apiKeyToString(res))
     } catch (e) {
       if (e instanceof SdkError && e.code == "NOT_FOUND") return
@@ -37,7 +40,7 @@ const createKeyCommand = new Command()
   )
   .action(async ({ name, access }) => {
     const parsedAccess = parseAccessRuleString(access)
-    const key = await apiKeys.create({ data: { name, access: parsedAccess } })
+    const key = await sdk.apiKeys.create({ data: { name, access: parsedAccess } })
     console.log(`${c.green("✓")} API key created\n\n  ${key.key}`)
   })
 
@@ -48,8 +51,8 @@ const updateKeyCommand = new Command()
   .option("-a, --access <value:string>", "Access JSON as a string")
   .arguments("<key:string>")
   .action(async ({ name, access }, key) => {
-    const k = await apiKeys.get({ key })
-    await apiKeys.update({
+    const k = await sdk.apiKeys.get({ key })
+    await sdk.apiKeys.update({
       key,
       data: {
         name: name ?? k.name,
@@ -64,7 +67,7 @@ const deleteKeyCommand = new Command()
   .description("Delete an API key by id.")
   .arguments("<key:string>")
   .action(async (_, key) => {
-    await apiKeys.delete({ key })
+    await sdk.apiKeys.delete({ key })
     console.log(`${c.green("✓")} API key deleted`)
   })
 

@@ -1,7 +1,7 @@
-import { dishes } from "@relish/sdk"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
+import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import {
@@ -14,6 +14,8 @@ import {
   sdkErrorResponse,
   SortOrderSchema,
 } from "~/lib/route-utils.ts"
+
+const { sdk } = container
 
 const SearchMetadataSchema = z.object({
   youtube: z.string().optional(),
@@ -62,7 +64,7 @@ export const dishRoutes = new Hono()
     async (c) => {
       const query = c.req.valid("query")
       try {
-        const list = await dishes.list({
+        const list = await sdk.dishes.list({
           page: query.page,
           sort: query.sort,
           order: query.order,
@@ -88,7 +90,7 @@ export const dishRoutes = new Hono()
     async (c) => {
       const body = c.req.valid("json")
       try {
-        const item = await dishes.create({ data: body })
+        const item = await sdk.dishes.create({ data: body })
         return c.json(item, 201)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -110,7 +112,7 @@ export const dishRoutes = new Hono()
     async (c) => {
       const params = c.req.valid("param")
       try {
-        const item = await dishes.get({ id: params.id })
+        const item = await sdk.dishes.get({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -134,7 +136,7 @@ export const dishRoutes = new Hono()
       const params = c.req.valid("param")
       const body = c.req.valid("json")
       try {
-        const item = await dishes.update({ id: params.id, data: body })
+        const item = await sdk.dishes.update({ id: params.id, data: body })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -157,7 +159,7 @@ export const dishRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await dishes.delete({ id: params.id })
+        const item = await sdk.dishes.delete({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)

@@ -1,7 +1,7 @@
-import { recipeInstances } from "@relish/sdk"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
+import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import {
@@ -15,6 +15,8 @@ import {
   SortOrderSchema,
   ToolRefSchema,
 } from "~/lib/route-utils.ts"
+
+const { sdk } = container
 
 const UserIngredientRefSchema = z.object({
   ingredientOrDishId: ObjectIdSchema,
@@ -113,7 +115,7 @@ export const recipeInstanceRoutes = new Hono()
       const query = c.req.valid("query")
 
       try {
-        const list = await recipeInstances.list({
+        const list = await sdk.recipeInstances.list({
           page: query.page,
           sort: query.sort,
           order: query.order,
@@ -148,7 +150,7 @@ export const recipeInstanceRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await recipeInstances.create({ data: body })
+        const item = await sdk.recipeInstances.create({ data: body })
         return c.json(item, 201)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -171,7 +173,7 @@ export const recipeInstanceRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await recipeInstances.get({ id: params.id })
+        const item = await sdk.recipeInstances.get({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -196,7 +198,7 @@ export const recipeInstanceRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await recipeInstances.update({ id: params.id, data: body })
+        const item = await sdk.recipeInstances.update({ id: params.id, data: body })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -219,7 +221,7 @@ export const recipeInstanceRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await recipeInstances.delete({ id: params.id })
+        const item = await sdk.recipeInstances.delete({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)

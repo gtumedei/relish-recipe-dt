@@ -1,5 +1,6 @@
-import { db, type Prisma, type Tool } from "@relish/storage"
+import type { Prisma, Tool } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
+import type { ContainerOf } from "@relish/utils/types"
 import { SdkError } from "~/error.ts"
 import { type ListResult, PAGE_SIZE } from "~/shared.ts"
 
@@ -12,7 +13,7 @@ export type ToolListParams = {
   }
 }
 
-export const tools = {
+export const createToolsClient = ({ db }: ContainerOf<"db">) => ({
   list: async (params?: ToolListParams): Promise<ListResult<Tool>> => {
     const page = Math.max(1, Math.floor(params?.page ?? 1))
     const order = params?.order ?? "desc"
@@ -77,6 +78,4 @@ export const tools = {
     const deletedItem = await db.tool.delete({ where: { id: params.id } })
     return deletedItem
   },
-}
-
-export type { Tool }
+})

@@ -1,4 +1,6 @@
-import { db } from "./database.ts"
+import { createPrismaClient } from "./database.ts"
+
+const db = createPrismaClient()
 
 const EMBEDDING_DIMENSIONS = 1536 // The size must match the one required by the embedding model you are going to use
 

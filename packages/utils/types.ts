@@ -1,3 +1,4 @@
+import type { SdkClient } from "@relish/sdk"
 import type { PrismaClient } from "@relish/storage"
 import type { Logger } from "./logger.ts"
 
@@ -5,7 +6,10 @@ import type { Logger } from "./logger.ts"
 export type Container = {
   logger: Logger
   db: PrismaClient
+  sdk: SdkClient
 }
+
+export type ContainerOf<TDeps extends keyof Container> = Pick<Container, TDeps>
 
 /** Factory function for dependency containers, with optional parameters. */
 export type ContainerFactory<TParams = void> = (params: TParams) => Container | Promise<Container>

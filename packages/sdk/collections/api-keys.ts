@@ -1,4 +1,5 @@
-import { db, type $Enums, type ApiKey } from "@relish/storage"
+import type { $Enums, ApiKey } from "@relish/storage"
+import type { ContainerOf } from "@relish/utils/types"
 import { nanoid } from "nanoid"
 import z from "zod"
 import { SdkError } from "~/error.ts"
@@ -15,7 +16,7 @@ export const CollectionAccessSchema = z.array(
 export type ProtectedCollection = z.infer<typeof CollectionAccessSchema>[number]["collection"]
 export type AccessRule = z.infer<typeof CollectionAccessSchema>[number]["rules"][number]
 
-export const apiKeys = {
+export const createApiKeysClient = ({ db }: ContainerOf<"db">) => ({
   list: async () => {
     const keys = await db.apiKey.findMany()
     return keys
@@ -54,4 +55,4 @@ export const apiKeys = {
     const deletedKey = await db.apiKey.delete({ where: { key: params.key } })
     return deletedKey
   },
-}
+})

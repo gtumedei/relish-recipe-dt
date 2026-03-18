@@ -1,26 +1,31 @@
 import type { ExtractedRecipe } from "@relish/recipe-processing"
-import { db, type Prisma } from "@relish/storage"
+import type { Prisma } from "@relish/storage"
 import { gpt4oMini, toEmbedding } from "@relish/utils/ai"
-import { logger } from "@relish/utils/logger"
+import type { Container } from "@relish/utils/types"
 import { generateObject } from "ai"
 import { z } from "zod"
 
 export type ExtractedRecipeWithDbEntities = Pick<
-  Prisma.UserRecipeCreateManyInput,
+  Prisma.RecipeInstanceCreateManyInput,
   "ingredients" | "tools" | "steps" | "totalPrepSeconds"
 >
 
 export const populateWithDbEntities = async (
-  recipes: ExtractedRecipe[]
+  container: Container,
+  recipes: ExtractedRecipe[],
 ): Promise<ExtractedRecipeWithDbEntities[]> => {
+  const { logger } = container
+
   // Find existing ingredients from the recipe in the db
   const ingredientNames = [
     ...new Set(
-      recipes.flatMap((r) => r.steps.flatMap((s) => s.ingredients.map((i) => i.ingredientName)))
+      recipes.flatMap((r) => r.steps.flatMap((s) => s.ingredients.map((i) => i.ingredientName))),
     ),
   ]
   logger.i(`Finding ${ingredientNames.length} ingredients in the database`)
-  const dbIngredients = await Promise.all(ingredientNames.map(findOrCreateIngredient))
+  const dbIngredients = await Promise.all(
+    ingredientNames.map((name) => findOrCreateIngredient(container, name)),
+  )
 
   // Find existing tools (and alternatives) from the recipe in the db
   // All tools flattened
@@ -30,8 +35,8 @@ export const populateWithDbEntities = async (
         r.steps.flatMap((s) => [
           ...s.tools.map((t) => t.toolName),
           ...s.tools.flatMap((t) => t.alternativeTools),
-        ])
-      )
+        ]),
+      ),
     ),
   ]
   // Tools from all steps, but keeping the tool-alternatives structure
@@ -51,10 +56,10 @@ export const populateWithDbEntities = async (
       [] as {
         toolName: string
         alternativeTools: string[]
-      }[]
+      }[],
     )
   logger.i(`Finding ${allToolNames.length} tools in the database`)
-  const dbTools = await Promise.all(allToolNames.map(findOrCreateTool))
+  const dbTools = await Promise.all(allToolNames.map((name) => findOrCreateTool(container, name)))
 
   // TODO: subrecipes?
 
@@ -79,7 +84,7 @@ export const populateWithDbEntities = async (
             acc.unit = i.unit
             return acc
           },
-          { partial: false, quantity: 0, unit: null as string | null }
+          { partial: false, quantity: 0, unit: null as string | null },
         )
       const ref = {
         ingredientOrDishId: ingredient.document.id,
@@ -91,7 +96,7 @@ export const populateWithDbEntities = async (
     tools: toolNamesWithAlternatives.map((t) => ({
       tool: dbTools.find((dbTool) => dbTool.string == t.toolName)!.document.id,
       alternatives: t.alternativeTools.map(
-        (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id
+        (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id,
       ),
     })),
     steps: recipe.steps.map((step) => ({
@@ -106,7 +111,7 @@ export const populateWithDbEntities = async (
       tools: step.tools.map((t) => ({
         tool: dbTools.find((dbTool) => dbTool.string == t.toolName)!.document.id,
         alternatives: t.alternativeTools.map(
-          (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id
+          (name) => dbTools.find((dbTool) => dbTool.string == name)!.document.id,
         ),
       })),
       prepSeconds: step.prepSeconds,
@@ -151,10 +156,13 @@ Examples:
 
 type SemanticFindResultCode = "SUCCESS" | "NOT_FOUND" | "DECISION_NOT_PASSED"
 
-const findIngredientSemantically = async (parameters: {
-  query: string
-  embedding?: number[]
-}): Promise<{ code: SemanticFindResultCode; data?: any }> => {
+const findIngredientSemantically = async (
+  { db }: Container,
+  parameters: {
+    query: string
+    embedding?: number[]
+  },
+): Promise<{ code: SemanticFindResultCode; data?: any }> => {
   // Semantic search
   const queryEmbedding = parameters.embedding ?? (await toEmbedding(parameters.query))
   const res = await db.ingredient.aggregateRaw({
@@ -190,10 +198,14 @@ const findIngredientSemantically = async (parameters: {
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
 }
 
-const findOrCreateIngredient = async (ingredientName: string) => {
+const findOrCreateIngredient = async (container: Container, ingredientName: string) => {
+  const { db, logger } = container
   logger.i(`Searching for "${ingredientName}" references`)
   const nameEmbedding = await toEmbedding(ingredientName)
-  const res = await findIngredientSemantically({ query: ingredientName, embedding: nameEmbedding })
+  const res = await findIngredientSemantically(container, {
+    query: ingredientName,
+    embedding: nameEmbedding,
+  })
   if (res.data) {
     logger.s(`Reference found for "${ingredientName}"`)
     const ingredientFromDb = await db.ingredient.findUnique({
@@ -201,7 +213,7 @@ const findOrCreateIngredient = async (ingredientName: string) => {
     })
     if (!ingredientFromDb)
       throw new Error(
-        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
+        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`,
       )
     return { string: ingredientName, document: ingredientFromDb }
   } else {
@@ -213,10 +225,13 @@ const findOrCreateIngredient = async (ingredientName: string) => {
   }
 }
 
-const findToolSemantically = async (parameters: {
-  query: string
-  embedding?: number[]
-}): Promise<{ code: SemanticFindResultCode; data?: any }> => {
+const findToolSemantically = async (
+  { db }: Container,
+  parameters: {
+    query: string
+    embedding?: number[]
+  },
+): Promise<{ code: SemanticFindResultCode; data?: any }> => {
   // Semantic search
   const queryEmbedding = parameters.embedding ?? (await toEmbedding(parameters.query))
   const res = await db.tool.aggregateRaw({
@@ -253,10 +268,12 @@ const findToolSemantically = async (parameters: {
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
 }
 
-const findOrCreateTool = async (toolName: string) => {
+const findOrCreateTool = async (container: Container, toolName: string) => {
+  const { db, logger } = container
+
   logger.i(`Searching for "${toolName}" references`)
   const nameEmbedding = await toEmbedding(toolName)
-  const res = await findToolSemantically({ query: toolName, embedding: nameEmbedding })
+  const res = await findToolSemantically(container, { query: toolName, embedding: nameEmbedding })
   if (res.data) {
     logger.s(`Reference found for "${toolName}"`)
     const toolFromDb = await db.tool.findUnique({
@@ -264,7 +281,7 @@ const findOrCreateTool = async (toolName: string) => {
     })
     if (!toolFromDb)
       throw new Error(
-        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`
+        `ObjectId "${res.data._id.$oid}" returned from an aggregation does not match with Prisma`,
       )
     return { string: toolName, document: toolFromDb }
   } else {

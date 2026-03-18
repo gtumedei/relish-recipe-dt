@@ -1,9 +1,11 @@
-import { db } from "@relish/storage"
+import { AccessRule, ProtectedCollection } from "@relish/sdk"
 import type { Context, Next } from "hono"
 import { describeRoute } from "hono-openapi"
 import { every } from "hono/combine"
+import { container } from "~/api.container.ts"
 import { security } from "~/lib/openapi-utils.ts"
-import { AccessRule, ProtectedCollection } from "@relish/sdk"
+
+const { db } = container
 
 /**
  * Block access if no valid API key is provided via Bearer token.

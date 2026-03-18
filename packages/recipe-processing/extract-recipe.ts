@@ -1,5 +1,5 @@
 import { gpt4oMini } from "@relish/utils/ai"
-import { logger } from "@relish/utils/logger"
+import type { Container } from "@relish/utils/types"
 import { generateObject } from "ai"
 import { z } from "zod"
 
@@ -28,24 +28,24 @@ const InitialRecipeSchema = z.object({
             .string()
             .nullish()
             .describe(
-              `Set to "units" if the ingredient has a quantity but not a specific unit (e.g. 4 eggs)`
+              `Set to "units" if the ingredient has a quantity but not a specific unit (e.g. 4 eggs)`,
             ),
-        })
+        }),
       ),
       tools: z.array(
         z.object({
           toolName: z.string(),
           alternativeTools: z.array(z.string()),
-        })
+        }),
       ),
       prepSeconds: z.number().nullish(),
-    })
+    }),
   ),
 })
 
 export type ExtractedRecipe = Awaited<ReturnType<typeof extractRecipe>>["result"][number]
 
-export const extractRecipe = async (text: string) => {
+export const extractRecipe = async ({ logger }: Container, text: string) => {
   // Generate structured recipe
   logger.i("Extracting recipe from text")
   const { object: initialRecipes } = await generateObject({

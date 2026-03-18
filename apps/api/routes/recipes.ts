@@ -1,7 +1,7 @@
-import { recipes } from "@relish/sdk"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
+import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import {
@@ -15,6 +15,8 @@ import {
   SortOrderSchema,
   ToolRefSchema,
 } from "~/lib/route-utils.ts"
+
+const { sdk } = container
 
 const IngredientRefSchema = z.object({
   ingredientOrDishId: ObjectIdSchema,
@@ -93,7 +95,7 @@ export const recipeRoutes = new Hono()
       const query = c.req.valid("query")
 
       try {
-        const list = await recipes.list({
+        const list = await sdk.recipes.list({
           page: query.page,
           sort: query.sort,
           order: query.order,
@@ -126,7 +128,7 @@ export const recipeRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await recipes.create({ data: body })
+        const item = await sdk.recipes.create({ data: body })
         return c.json(item, 201)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -149,7 +151,7 @@ export const recipeRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await recipes.get({ id: params.id })
+        const item = await sdk.recipes.get({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -174,7 +176,7 @@ export const recipeRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await recipes.update({ id: params.id, data: body })
+        const item = await sdk.recipes.update({ id: params.id, data: body })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -197,7 +199,7 @@ export const recipeRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await recipes.delete({ id: params.id })
+        const item = await sdk.recipes.delete({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)

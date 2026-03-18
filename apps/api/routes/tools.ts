@@ -1,7 +1,7 @@
-import { tools } from "@relish/sdk"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
+import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import {
@@ -14,6 +14,8 @@ import {
   sdkErrorResponse,
   SortOrderSchema,
 } from "~/lib/route-utils.ts"
+
+const { sdk } = container
 
 const ToolWriteSchema = z.object({
   name: z.string().min(1),
@@ -53,7 +55,7 @@ export const toolRoutes = new Hono()
       const query = c.req.valid("query")
 
       try {
-        const list = await tools.list({
+        const list = await sdk.tools.list({
           page: query.page,
           sort: query.sort,
           order: query.order,
@@ -80,7 +82,7 @@ export const toolRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await tools.create({ data: body })
+        const item = await sdk.tools.create({ data: body })
         return c.json(item, 201)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -103,7 +105,7 @@ export const toolRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await tools.get({ id: params.id })
+        const item = await sdk.tools.get({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -128,7 +130,7 @@ export const toolRoutes = new Hono()
       const body = c.req.valid("json")
 
       try {
-        const item = await tools.update({ id: params.id, data: body })
+        const item = await sdk.tools.update({ id: params.id, data: body })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -151,7 +153,7 @@ export const toolRoutes = new Hono()
       const params = c.req.valid("param")
 
       try {
-        const item = await tools.delete({ id: params.id })
+        const item = await sdk.tools.delete({ id: params.id })
         return c.json(item)
       } catch (error) {
         return sdkErrorResponse(c, error)

@@ -2,11 +2,12 @@ import { Command, EnumType } from "@cliffy/command"
 import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
+import { container } from "~/cli.container.ts"
 
 const evaluateRecipeLikelihoodCommand = new Command()
   .name("evaluate-recipe-likelihood")
   .description(
-    "Evaluate the likelihood for a social media post to be about a recipe based on its metadata."
+    "Evaluate the likelihood for a social media post to be about a recipe based on its metadata.",
   )
   .type("source", new EnumType(["text", "file"]))
   .option("-s, --source <source:source>", "Read metadata from text or file.", { required: true })
@@ -28,7 +29,7 @@ const extractRecipeCommand = new Command()
   .arguments("<content:string>")
   .action(async ({ source }, contentOrPath) => {
     const content = source == "text" ? contentOrPath : await Deno.readTextFile(contentOrPath)
-    const res = await extractRecipe(content)
+    const res = await extractRecipe(container, content)
     console.log(`${c.blue("→")} Result:\n`)
     console.log(JSON.stringify(res, null, 2))
   })
