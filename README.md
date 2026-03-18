@@ -111,3 +111,18 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
   # Push the database schema
   deno task db:push
   ```
+
+## Notes on development practices
+
+### Classes
+
+The project tries to avoid using classes in favor of a simpler, more concise factory function and composition approach. Classes should generally be used to extend the `Error` class, and nothing more.
+
+### Dependency management
+
+The code in the project can run in three different "environments": REST API handlers, direct execution (CLI), and worker threads. Potentially, all three can run code at the same time, in parallel. To prevent concurrency issues, and to provide different dependency implementations based on the environment, a very minimal dependency injection setup was created.
+
+In `packages/utils/types.ts`, the `Container` type defines a set of dependencies that all apps (`api` and `cli`) should provide. The rules for using it are simple:
+
+- All of the functions in `packages` should never import or directly access the dependencies defined in `Container`. Instead, they should accept them as part of a first parameter named `container`. The parameter can either be the entire DI `Container`, or a subset of it through the `ContainerOf<"key1" | "key2">` helper type.
+- All of the apps in `apps` should include at least one `app.container.ts` file, either exporting an object of type `Container`, or a factory function of type `ContainerFactory`. The app is then responsible for passing its container/s dependencies to the function call from `packages`.

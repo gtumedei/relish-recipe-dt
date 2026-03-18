@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
 import { container } from "~/api.container.ts"
+import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import { IdParamSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
 import { pool } from "~/tasks/pool.ts"
@@ -10,6 +11,8 @@ const { db } = container
 
 export const taskRoutes = new Hono()
   .use(describeRoute({ tags: ["Tasks"] }))
+  .use(requireCollectionAccess("Task"))
+  .use(requireAccessRule("TASKS"))
 
   .get(
     "/",

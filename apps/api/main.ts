@@ -58,6 +58,7 @@ app.get(
     url: "/docs",
     favicon: "/favicon.webp",
     agent: { disabled: true },
+    hideClientButton: true,
     showDeveloperTools: "never",
     persistAuth: true,
   }),

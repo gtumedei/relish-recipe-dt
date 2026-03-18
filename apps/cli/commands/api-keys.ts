@@ -35,7 +35,7 @@ const createKeyCommand = new Command()
   .option("-n, --name <value:string>", "New name for the key", { required: true })
   .option(
     "-a, --access <value:string>",
-    "Access rules string. Example:\ncollection1:CREATE,READ,UPDATE,DELETE,TASKS\ncollection2:CREATE",
+    "Access rules string. Example:\ncollection1:CREATE,READ,UPDATE,DELETE\ncollection2:CREATE",
     { required: true },
   )
   .action(async ({ name, access }) => {
