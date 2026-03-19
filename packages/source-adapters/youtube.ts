@@ -2,7 +2,7 @@ import { env } from "@relish/env"
 import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
 import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
-import type { Container } from "@relish/utils/types"
+import { Container } from "@relish/utils/types"
 import {
   describeVideo,
   describeVideoFrames,
@@ -14,7 +14,7 @@ import {
 } from "@relish/utils/video"
 import { join } from "@std/path"
 import dayjs from "dayjs"
-import type { ExtractedRecipeWithMetadata } from "./mod.ts"
+import { ExtractedRecipeWithMetadata } from "./mod.ts"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"

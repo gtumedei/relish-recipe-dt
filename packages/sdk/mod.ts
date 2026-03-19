@@ -1,4 +1,4 @@
-import type { ContainerOf } from "@relish/utils/types"
+import { ContainerOf } from "@relish/utils/types"
 import { createApiKeysClient } from "~/collections/api-keys.ts"
 import { createDishesClient } from "~/collections/dishes.ts"
 import { createIngredientsClient } from "~/collections/ingredients.ts"

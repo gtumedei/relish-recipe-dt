@@ -1,5 +1,5 @@
-import type { AccessRule, ProtectedCollection } from "@relish/sdk"
-import type { ApiKey } from "@relish/storage"
+import { AccessRule, ProtectedCollection } from "@relish/sdk"
+import { ApiKey } from "@relish/storage"
 
 declare module "hono" {
   interface ContextVariableMap {

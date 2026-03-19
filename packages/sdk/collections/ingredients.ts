@@ -1,8 +1,8 @@
-import type { Ingredient, Prisma } from "@relish/storage"
+import { Ingredient, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
-import type { ContainerOf } from "@relish/utils/types"
+import { ContainerOf } from "@relish/utils/types"
 import { SdkError } from "~/error.ts"
-import { type ListResult, PAGE_SIZE } from "~/shared.ts"
+import { ListResult, PAGE_SIZE } from "~/shared.ts"
 
 export type IngredientListParams = {
   page?: number

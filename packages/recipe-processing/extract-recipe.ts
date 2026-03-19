@@ -1,5 +1,5 @@
 import { gpt4oMini } from "@relish/utils/ai"
-import type { Container } from "@relish/utils/types"
+import { Container } from "@relish/utils/types"
 import { generateObject } from "ai"
 import { z } from "zod"
 

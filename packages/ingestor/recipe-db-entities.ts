@@ -1,7 +1,7 @@
-import type { ExtractedRecipe } from "@relish/recipe-processing"
-import type { Prisma } from "@relish/storage"
+import { ExtractedRecipe } from "@relish/recipe-processing"
+import { Prisma } from "@relish/storage"
 import { gpt4oMini, toEmbedding } from "@relish/utils/ai"
-import type { Container } from "@relish/utils/types"
+import { Container } from "@relish/utils/types"
 import { generateObject } from "ai"
 import { z } from "zod"
 

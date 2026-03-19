@@ -1,4 +1,4 @@
-import type { ExtractedRecipe } from "@relish/recipe-processing"
+import { ExtractedRecipe } from "@relish/recipe-processing"
 
 export type ExtractedRecipeWithMetadata = ExtractedRecipe & {
   source: string

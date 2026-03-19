@@ -1,6 +1,6 @@
-import type { SdkClient } from "@relish/sdk"
-import type { PrismaClient } from "@relish/storage"
-import type { Logger } from "./logger.ts"
+import { SdkClient } from "@relish/sdk"
+import { PrismaClient } from "@relish/storage"
+import { Logger } from "./logger.ts"
 
 /** Container type to create simple DI-like modules for the various runtimes (REST API, CLI, workers, etc.) */
 export type Container = {

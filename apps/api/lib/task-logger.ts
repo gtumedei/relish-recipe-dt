@@ -1,4 +1,4 @@
-import { type PrismaClient } from "@relish/storage"
+import { PrismaClient } from "@relish/storage"
 import { createLogger } from "@relish/utils/logger"
 
 export const createPersistedTaskLogger = (db: PrismaClient, taskId: string) => {

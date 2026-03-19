@@ -1,5 +1,5 @@
 import { SdkError, toHttpStatus } from "@relish/sdk"
-import type { Context } from "hono"
+import { Context } from "hono"
 import z from "zod"
 
 export const ObjectIdSchema = z.string().regex(/^[a-fA-F\d]{24}$/i)

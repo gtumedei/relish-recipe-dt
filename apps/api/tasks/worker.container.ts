@@ -1,5 +1,5 @@
 import { createSdkClient } from "@relish/sdk"
-import type { ContainerFactory } from "@relish/utils/types"
+import { ContainerFactory } from "@relish/utils/types"
 import { createPersistedTaskLogger } from "~/lib/task-logger.ts"
 
 export const createWorkerContainer: ContainerFactory<{ taskId: string }> = async (args) => {
