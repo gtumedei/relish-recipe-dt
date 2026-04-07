@@ -40,6 +40,8 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
       Simulate the evolution of recipes based on certain factors.
     - `recipe-processing`\
       Logic to parse the unstructured or semi-structured description of a recipe into a well-defined structure.
+    - `sdk`\
+      Provides a universal client to interact with the system. The web API and CLI apps are based on this SDK.
     - `source-adapters`\
       Logic to fetch recipe data from external sources.
       - `bluesky` (placeholder)

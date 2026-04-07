@@ -1,4 +1,5 @@
 {
+  "version": "0.1.0",
   "tasks": {
     "api:start": "cd apps/api && deno task start",
     "cli:start": "cd apps/cli && deno task start",
