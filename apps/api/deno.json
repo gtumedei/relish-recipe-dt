@@ -1,12 +1,13 @@
 {
   "tasks": {
-    "start": "deno run -A --unstable-cron main.ts"
+    "start": "deno run -A --unstable-cron main.ts",
+    "start:worker": "deno run -A --unstable-cron tasks/worker.ts"
   },
   "imports": {
     "@hono/standard-validator": "npm:@hono/standard-validator@^0.2.2",
     "@hono/zod-openapi": "npm:@hono/zod-openapi@^1.2.1",
-    "@poolifier/poolifier-web-worker": "jsr:@poolifier/poolifier-web-worker@^0.6.0",
     "@scalar/hono-api-reference": "npm:@scalar/hono-api-reference@^0.9.40",
+    "bullmq": "npm:bullmq@^5.79.1",
     "hono": "npm:hono@^4.11.9",
     "hono-openapi": "npm:hono-openapi@^1.2.0",
     "~/": "./"

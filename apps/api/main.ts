@@ -15,7 +15,8 @@ import { recipeInstanceRoutes } from "~/routes/recipe-instances.ts"
 import { recipeRoutes } from "~/routes/recipes.ts"
 import { taskRoutes } from "~/routes/tasks.ts"
 import { toolRoutes } from "~/routes/tools.ts"
-import { pool } from "~/tasks/pool.ts"
+import { container } from "~/api.container.ts"
+import { queue } from "~/tasks/queue.ts"
 
 const app = new Hono()
 
@@ -68,31 +69,30 @@ app.use("/favicon.webp", serveStatic({ path: "./public/favicon.webp" }))
 
 app.notFound((c) => c.json({ message: "Not found" }, 404))
 
-pool.start()
+// Restart unfinished tasks
+const { db } = container
+const unfinishedTasks = await db.task.findMany({
+  where: { status: { in: ["PENDING", "RUNNING", "RESTARTED"] } },
+})
+if (unfinishedTasks.length > 0) {
+  console.log(`🔄 Restarting ${unfinishedTasks.length} unfinished tasks`)
+  await db.task.updateMany({
+    data: { status: "RESTARTED" },
+    where: { id: { in: unfinishedTasks.map((t) => t.id) } },
+  })
+  await Promise.all(
+    unfinishedTasks.map((task) => queue.add("process", { foo: "bar" }, { jobId: task.id })),
+  )
+}
 
+// Start the web server
 const msg = `
 🍛 Relish server started
 
    API:   ${blue("http://localhost:8000/api")}
    Docs:  ${blue("http://localhost:8000/scalar")}
 `
-
-const ac = new AbortController()
-
-Deno.serve({ signal: ac.signal, onListen: () => console.log(msg) }, app.fetch)
-
-let shuttingDown = false
-const shutdown = async () => {
-  if (shuttingDown) return
-  shuttingDown = true
-  console.log("Shutting down Hono server...")
-  ac.abort()
-  console.log("Terminating worker pool...")
-  await pool.destroy()
-  Deno.exit(0)
-}
-Deno.addSignalListener("SIGINT", shutdown)
-Deno.addSignalListener("SIGTERM", shutdown)
+Deno.serve({ onListen: () => console.log(msg) }, app.fetch)
 
 // Every day at 00:00, cleanup temporary files and folders older than 1 week.
 Deno.cron("Temporary files cleanup", "0 0 * * *", async () => {

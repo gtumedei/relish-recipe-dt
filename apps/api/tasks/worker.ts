@@ -1,33 +1,44 @@
-import { ThreadWorker } from "@poolifier/poolifier-web-worker"
-import { createWorkerContainer } from "./worker.container.ts"
+import { Worker, type Job } from "bullmq"
+import { TaskData, TASKS_QUEUE_NAME } from "~/tasks/queue.ts"
+import { createWorkerContainer } from "~/tasks/worker.container.ts"
 
-const workerFn = async (data?: { taskId: string }) => {
-  if (!data) throw new Error("Missing task data")
-  const { logger, db } = await createWorkerContainer(data)
+const worker = new Worker(
+  TASKS_QUEUE_NAME,
+  async (task: Job<TaskData>) => {
+    console.log(`[job:${task.id}] processing (name: ${task.name})`, task.data)
+    if (!task.id) throw new Error("Job has no identifier")
 
-  logger.i("Task started")
-  logger.i("Test payload", data)
-  // console.log("Test payload", data)
-  await new Promise((r) => setTimeout(r, 5000))
-  logger.w("Middle of the task")
-  // console.log("Middle of the task")
-  // await new Promise((r) => setTimeout(r, 20000))
-  const res = { ok: 1, data }
-  logger.i("Task completed", res)
-  // console.log("Task completed", res)
-  await db.task.update({
-    where: { id: data.taskId },
-    data: {
-      status: "COMPLETED",
-      completedAt: new Date(),
-    },
-  })
-  return res
-}
+    const { logger, db } = createWorkerContainer({ taskId: task.id })
 
-export type WorkerData = Parameters<typeof workerFn>[number]
-export type WorkerResponse = ReturnType<typeof workerFn>
+    logger.i("Task started")
+    logger.i("Test payload", task.data)
+    // console.log("Test payload", data)
+    await new Promise((r) => setTimeout(r, 5000))
 
-export default new ThreadWorker(workerFn, {
-  maxInactiveTime: 60000,
-})
+    logger.w("Middle of the task")
+    // console.log("Middle of the task")
+    // await new Promise((r) => setTimeout(r, 20000))
+    const res = { ok: 1, data: task.data }
+
+    logger.i("Task completed", res)
+    // console.log("Task completed", res)
+    await db.task.update({
+      where: { id: task.id },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+      },
+    })
+
+    console.log(`[job:${task.id}] done`, res)
+    return res
+  },
+  { connection: { host: "localhost", port: 6379 }, concurrency: 2 },
+)
+
+worker.on("completed", (job: Job) => console.log(`[job:${job.id}] completed`))
+worker.on("failed", (job: Job | undefined, err: Error) =>
+  console.error(`[job:${job?.id}] failed - `, err.message),
+)
+
+console.log(`🤖 Worker listening on queue: "jobs"`)

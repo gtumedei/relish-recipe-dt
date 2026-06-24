@@ -172,10 +172,12 @@ model Task {
 }
 
 enum TaskStatus {
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELED
+  PENDING // The task has been added to the queue, but no worker is processing it, yet
+  RUNNING // The task is being processed by a worker
+  COMPLETED // The task was completed successfully
+  FAILED // The task failed with an error
+  RESTARTED // The task has been restarted after a crash stopped it while it was PENDING or RUNNING
+  CANCELED // The task was canceled
 }
 
 type LogEntry {

@@ -5,7 +5,7 @@ import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import { IdParamSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
-import { pool } from "~/tasks/pool.ts"
+import { queue } from "~/tasks/queue.ts"
 
 const { db } = container
 
@@ -23,7 +23,9 @@ export const taskRoutes = new Hono()
     }),
     async (c) => {
       try {
-        const tasks = await db.task.findMany()
+        const tasks = await db.task.findMany({
+          orderBy: { createdAt: "desc" },
+        })
         return c.json(tasks)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -66,9 +68,9 @@ export const taskRoutes = new Hono()
     }),
     async (c) => {
       const task = await db.task.create({
-        data: { status: "RUNNING" },
+        data: { status: "PENDING" },
       })
-      pool.execute({ taskId: task.id })
+      await queue.add("process", { foo: "bar" }, { jobId: task.id })
       return c.json(task)
     },
   )
