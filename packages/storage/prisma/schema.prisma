@@ -164,7 +164,8 @@ enum AccessRule {
 
 model Task {
   id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  status      TaskStatus
+  status      TaskStatus @default(PENDING)
+  stallCount  Int        @default(0)
   logs        LogEntry[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -176,7 +177,7 @@ enum TaskStatus {
   RUNNING // The task is being processed by a worker
   COMPLETED // The task was completed successfully
   FAILED // The task failed with an error
-  RESTARTED // The task has been restarted after a crash stopped it while it was PENDING or RUNNING
+  STALLED // The task has been stalled due to a crash in the queue system
   CANCELED // The task was canceled
 }
 

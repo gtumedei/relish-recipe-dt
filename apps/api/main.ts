@@ -1,4 +1,3 @@
-import { cleanupTmpDir } from "@relish/storage"
 import { Scalar } from "@scalar/hono-api-reference"
 import { blue } from "@std/fmt/colors"
 import { Hono } from "hono"
@@ -6,6 +5,8 @@ import { openAPIRouteHandler } from "hono-openapi"
 import { cors } from "hono/cors"
 import { serveStatic } from "hono/deno"
 import { logger } from "hono/logger"
+import { container } from "~/api.container.ts"
+import { setupCronjobs } from "~/crons.ts"
 import { apiKeyAuth } from "~/lib/auth.ts"
 import { security } from "~/lib/openapi-utils.ts"
 import { apiKeyRoutes } from "~/routes/api-keys.ts"
@@ -15,7 +16,6 @@ import { recipeInstanceRoutes } from "~/routes/recipe-instances.ts"
 import { recipeRoutes } from "~/routes/recipes.ts"
 import { taskRoutes } from "~/routes/tasks.ts"
 import { toolRoutes } from "~/routes/tools.ts"
-import { container } from "~/api.container.ts"
 import { queue } from "~/tasks/queue.ts"
 
 const app = new Hono()
@@ -69,15 +69,16 @@ app.use("/favicon.webp", serveStatic({ path: "./public/favicon.webp" }))
 
 app.notFound((c) => c.json({ message: "Not found" }, 404))
 
+// TODO: A crash of the web server does not crash workers, so this could theoretically re-queue all jobs even if they are perfectly fine
 // Restart unfinished tasks
 const { db } = container
 const unfinishedTasks = await db.task.findMany({
-  where: { status: { in: ["PENDING", "RUNNING", "RESTARTED"] } },
+  where: { status: { in: ["STALLED"] } },
 })
 if (unfinishedTasks.length > 0) {
   console.log(`🔄 Restarting ${unfinishedTasks.length} unfinished tasks`)
   await db.task.updateMany({
-    data: { status: "RESTARTED" },
+    data: { status: "PENDING" },
     where: { id: { in: unfinishedTasks.map((t) => t.id) } },
   })
   await Promise.all(
@@ -94,7 +95,4 @@ const msg = `
 `
 Deno.serve({ onListen: () => console.log(msg) }, app.fetch)
 
-// Every day at 00:00, cleanup temporary files and folders older than 1 week.
-Deno.cron("Temporary files cleanup", "0 0 * * *", async () => {
-  await cleanupTmpDir()
-})
+setupCronjobs()
