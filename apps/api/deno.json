@@ -1,7 +1,8 @@
 {
   "tasks": {
-    "start": "deno run -A --unstable-cron main.ts",
-    "start:worker": "deno run -A --unstable-cron tasks/worker.ts"
+    "server:start": "deno run -A --unstable-cron main.ts",
+    "worker:start": "deno run -A --unstable-cron tasks/worker.ts",
+    "start": { "dependencies": ["server:start", "worker:start"] }
   },
   "imports": {
     "@hono/standard-validator": "npm:@hono/standard-validator@^0.2.2",
