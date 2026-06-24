@@ -11,7 +11,7 @@ const workerFn = async (data?: { taskId: string }) => {
   await new Promise((r) => setTimeout(r, 5000))
   logger.w("Middle of the task")
   // console.log("Middle of the task")
-  await new Promise((r) => setTimeout(r, 20000))
+  // await new Promise((r) => setTimeout(r, 20000))
   const res = { ok: 1, data }
   logger.i("Task completed", res)
   // console.log("Task completed", res)

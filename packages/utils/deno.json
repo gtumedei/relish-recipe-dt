@@ -3,8 +3,8 @@
   "exports": {
     "./ai": "./ai.ts",
     "./command": "./command.ts",
+    "./di": "./di.ts",
     "./logger": "./logger.ts",
-    "./types": "./types.ts",
     "./video": "./video.ts"
   },
   "imports": {

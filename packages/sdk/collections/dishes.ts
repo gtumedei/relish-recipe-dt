@@ -1,6 +1,6 @@
 import { Dish, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
-import { ContainerOf } from "@relish/utils/types"
+import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
 import { ListResult, PAGE_SIZE } from "~/shared.ts"
 
@@ -13,73 +13,77 @@ export type DishListParams = {
   }
 }
 
-export const createDishesClient = ({ db }: ContainerOf<"db">) => ({
-  list: async (params?: DishListParams): Promise<ListResult<Dish>> => {
-    const page = Math.max(1, Math.floor(params?.page ?? 1))
-    const order = params?.order ?? "desc"
-    const sort = params?.sort ?? "createdAt"
+export function createDishesClient(this: Requires<"db">) {
+  const { db } = resolve(this)
 
-    const where: Prisma.DishWhereInput = {}
-    if (params?.filter?.name?.trim()) {
-      where.name = { contains: params.filter.name.trim() }
-    }
+  return {
+    list: async (params?: DishListParams): Promise<ListResult<Dish>> => {
+      const page = Math.max(1, Math.floor(params?.page ?? 1))
+      const order = params?.order ?? "desc"
+      const sort = params?.sort ?? "createdAt"
 
-    const primaryOrderBy: Prisma.DishOrderByWithRelationInput =
-      sort === "name" ? { name: order } : { createdAt: order }
+      const where: Prisma.DishWhereInput = {}
+      if (params?.filter?.name?.trim()) {
+        where.name = { contains: params.filter.name.trim() }
+      }
 
-    const [totalItemCount, items] = await Promise.all([
-      db.dish.count({ where }),
-      db.dish.findMany({
-        where,
-        orderBy: [primaryOrderBy, { id: "asc" }],
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
-      }),
-    ])
+      const primaryOrderBy: Prisma.DishOrderByWithRelationInput =
+        sort === "name" ? { name: order } : { createdAt: order }
 
-    return {
-      items,
-      page,
-      pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
-      totalItemCount,
-    }
-  },
+      const [totalItemCount, items] = await Promise.all([
+        db.dish.count({ where }),
+        db.dish.findMany({
+          where,
+          orderBy: [primaryOrderBy, { id: "asc" }],
+          skip: (page - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+        }),
+      ])
 
-  create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {
-    const nameEmbedding = await toEmbedding(params.data.name)
-    const item = await db.dish.create({ data: { ...params.data, nameEmbedding } })
-    return item
-  },
+      return {
+        items,
+        page,
+        pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
+        totalItemCount,
+      }
+    },
 
-  get: async (params: { id: string }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
-    if (!item) throw new SdkError({ code: "NOT_FOUND" })
-    return item
-  },
-
-  update: async (params: {
-    id: string
-    data: Omit<Prisma.DishUpdateInput, "nameEmbedding" | "name"> & {
-      name?: string
-    }
-  }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
-    if (!item) throw new SdkError({ code: "NOT_FOUND" })
-
-    let data: Prisma.DishUpdateInput = params.data
-    if (params.data.name && params.data.name !== item.name) {
+    create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {
       const nameEmbedding = await toEmbedding(params.data.name)
-      data = { ...params.data, nameEmbedding }
-    }
+      const item = await db.dish.create({ data: { ...params.data, nameEmbedding } })
+      return item
+    },
 
-    const updatedItem = await db.dish.update({ where: { id: params.id }, data })
-    return updatedItem
-  },
+    get: async (params: { id: string }) => {
+      const item = await db.dish.findUnique({ where: { id: params.id } })
+      if (!item) throw new SdkError({ code: "NOT_FOUND" })
+      return item
+    },
 
-  delete: async (params: { id: string }) => {
-    const item = await db.dish.findUnique({ where: { id: params.id } })
-    if (!item) throw new SdkError({ code: "NOT_FOUND" })
-    const deletedItem = await db.dish.delete({ where: { id: params.id } })
-    return deletedItem
-  },
-})
+    update: async (params: {
+      id: string
+      data: Omit<Prisma.DishUpdateInput, "nameEmbedding" | "name"> & {
+        name?: string
+      }
+    }) => {
+      const item = await db.dish.findUnique({ where: { id: params.id } })
+      if (!item) throw new SdkError({ code: "NOT_FOUND" })
+
+      let data: Prisma.DishUpdateInput = params.data
+      if (params.data.name && params.data.name !== item.name) {
+        const nameEmbedding = await toEmbedding(params.data.name)
+        data = { ...params.data, nameEmbedding }
+      }
+
+      const updatedItem = await db.dish.update({ where: { id: params.id }, data })
+      return updatedItem
+    },
+
+    delete: async (params: { id: string }) => {
+      const item = await db.dish.findUnique({ where: { id: params.id } })
+      if (!item) throw new SdkError({ code: "NOT_FOUND" })
+      const deletedItem = await db.dish.delete({ where: { id: params.id } })
+      return deletedItem
+    },
+  }
+}

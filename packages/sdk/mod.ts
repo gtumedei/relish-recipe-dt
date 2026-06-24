@@ -1,10 +1,11 @@
-import { ContainerOf } from "@relish/utils/types"
+import { Requires } from "@relish/utils/di"
 import { createApiKeysClient } from "~/collections/api-keys.ts"
 import { createDishesClient } from "~/collections/dishes.ts"
 import { createIngredientsClient } from "~/collections/ingredients.ts"
 import { createRecipeInstancesClient } from "~/collections/recipe-instances.ts"
 import { createRecipesClient } from "~/collections/recipes.ts"
 import { createToolsClient } from "~/collections/tools.ts"
+export * from "~/error.ts"
 
 export {
   CollectionAccessSchema,
@@ -16,16 +17,15 @@ export type { IngredientListParams } from "~/collections/ingredients.ts"
 export type { RecipeInstanceListParams } from "~/collections/recipe-instances.ts"
 export type { RecipeListParams } from "~/collections/recipes.ts"
 export type { ToolListParams } from "~/collections/tools.ts"
-export * from "~/error.ts"
 
-export const createSdkClient = (deps: ContainerOf<"db">) => {
+export function createSdkClient(this: Requires<"db">) {
   return {
-    apiKeys: createApiKeysClient(deps),
-    dishes: createDishesClient(deps),
-    ingredients: createIngredientsClient(deps),
-    recipes: createRecipesClient(deps),
-    recipeInstances: createRecipeInstancesClient(deps),
-    tools: createToolsClient(deps),
+    apiKeys: createApiKeysClient(),
+    dishes: createDishesClient(),
+    ingredients: createIngredientsClient(),
+    recipes: createRecipesClient(),
+    recipeInstances: createRecipeInstancesClient(),
+    tools: createToolsClient(),
   }
 }
 

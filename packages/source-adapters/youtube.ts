@@ -2,7 +2,7 @@ import { env } from "@relish/env"
 import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
 import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
-import { Container } from "@relish/utils/types"
+import { Container } from "@relish/utils/di"
 import {
   describeVideo,
   describeVideoFrames,
@@ -203,7 +203,7 @@ export const createYoutubeAdapter = (container: Container) => {
       await Deno.writeTextFile(descriptionPath, description)
 
       logger.i(`[${videoId}] Extracting formatted recipe...`)
-      const recipe = await extractRecipe(container, description)
+      const recipe = await extractRecipe(description)
 
       logger.i(`[${videoId}] Fetching detailed metadata...`)
       const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId })

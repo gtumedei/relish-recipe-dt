@@ -1,5 +1,5 @@
 import { gpt4oMini } from "@relish/utils/ai"
-import { Container } from "@relish/utils/types"
+import { Requires, resolve } from "@relish/utils/di"
 import { generateObject } from "ai"
 import { z } from "zod"
 
@@ -45,7 +45,9 @@ const InitialRecipeSchema = z.object({
 
 export type ExtractedRecipe = Awaited<ReturnType<typeof extractRecipe>>["result"][number]
 
-export const extractRecipe = async ({ logger }: Container, text: string) => {
+export async function extractRecipe(this: Requires<"logger">, text: string) {
+  const { logger } = resolve(this)
+
   // Generate structured recipe
   logger.i("Extracting recipe from text")
   const { object: initialRecipes } = await generateObject({

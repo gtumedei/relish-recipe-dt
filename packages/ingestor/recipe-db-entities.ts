@@ -1,7 +1,7 @@
 import { ExtractedRecipe } from "@relish/recipe-processing"
 import { Prisma } from "@relish/storage"
 import { gpt4oMini, toEmbedding } from "@relish/utils/ai"
-import { Container } from "@relish/utils/types"
+import { Container, Requires, resolve } from "@relish/utils/di"
 import { generateObject } from "ai"
 import { z } from "zod"
 
@@ -10,11 +10,11 @@ export type ExtractedRecipeWithDbEntities = Pick<
   "ingredients" | "tools" | "steps" | "totalPrepSeconds"
 >
 
-export const populateWithDbEntities = async (
-  container: Container,
+export async function populateWithDbEntities(
+  this: Container,
   recipes: ExtractedRecipe[],
-): Promise<ExtractedRecipeWithDbEntities[]> => {
-  const { logger } = container
+): Promise<ExtractedRecipeWithDbEntities[]> {
+  const { logger } = resolve(this)
 
   // Find existing ingredients from the recipe in the db
   const ingredientNames = [
@@ -24,7 +24,7 @@ export const populateWithDbEntities = async (
   ]
   logger.i(`Finding ${ingredientNames.length} ingredients in the database`)
   const dbIngredients = await Promise.all(
-    ingredientNames.map((name) => findOrCreateIngredient(container, name)),
+    ingredientNames.map((name) => findOrCreateIngredient(name)),
   )
 
   // Find existing tools (and alternatives) from the recipe in the db
@@ -59,7 +59,7 @@ export const populateWithDbEntities = async (
       }[],
     )
   logger.i(`Finding ${allToolNames.length} tools in the database`)
-  const dbTools = await Promise.all(allToolNames.map((name) => findOrCreateTool(container, name)))
+  const dbTools = await Promise.all(allToolNames.map((name) => findOrCreateTool(name)))
 
   // TODO: subrecipes?
 
@@ -156,13 +156,15 @@ Examples:
 
 type SemanticFindResultCode = "SUCCESS" | "NOT_FOUND" | "DECISION_NOT_PASSED"
 
-const findIngredientSemantically = async (
-  { db }: Container,
+async function findIngredientSemantically(
+  this: Requires<"db">,
   parameters: {
     query: string
     embedding?: number[]
   },
-): Promise<{ code: SemanticFindResultCode; data?: any }> => {
+): Promise<{ code: SemanticFindResultCode; data?: any }> {
+  const { db } = resolve(this)
+
   // Semantic search
   const queryEmbedding = parameters.embedding ?? (await toEmbedding(parameters.query))
   const res = await db.ingredient.aggregateRaw({
@@ -198,11 +200,11 @@ const findIngredientSemantically = async (
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
 }
 
-const findOrCreateIngredient = async (container: Container, ingredientName: string) => {
-  const { db, logger } = container
+async function findOrCreateIngredient(this: Requires<"db" | "logger">, ingredientName: string) {
+  const { db, logger } = resolve(this)
   logger.i(`Searching for "${ingredientName}" references`)
   const nameEmbedding = await toEmbedding(ingredientName)
-  const res = await findIngredientSemantically(container, {
+  const res = await findIngredientSemantically({
     query: ingredientName,
     embedding: nameEmbedding,
   })
@@ -225,13 +227,15 @@ const findOrCreateIngredient = async (container: Container, ingredientName: stri
   }
 }
 
-const findToolSemantically = async (
-  { db }: Container,
+async function findToolSemantically(
+  this: Requires<"db">,
   parameters: {
     query: string
     embedding?: number[]
   },
-): Promise<{ code: SemanticFindResultCode; data?: any }> => {
+): Promise<{ code: SemanticFindResultCode; data?: any }> {
+  const { db } = resolve(this)
+
   // Semantic search
   const queryEmbedding = parameters.embedding ?? (await toEmbedding(parameters.query))
   const res = await db.tool.aggregateRaw({
@@ -268,12 +272,12 @@ const findToolSemantically = async (
   return dec.match ? { code: "SUCCESS", data: res[0] } : { code: "DECISION_NOT_PASSED" }
 }
 
-const findOrCreateTool = async (container: Container, toolName: string) => {
-  const { db, logger } = container
+async function findOrCreateTool(this: Requires<"db" | "logger">, toolName: string) {
+  const { db, logger } = resolve(this)
 
   logger.i(`Searching for "${toolName}" references`)
   const nameEmbedding = await toEmbedding(toolName)
-  const res = await findToolSemantically(container, { query: toolName, embedding: nameEmbedding })
+  const res = await findToolSemantically({ query: toolName, embedding: nameEmbedding })
   if (res.data) {
     logger.s(`Reference found for "${toolName}"`)
     const toolFromDb = await db.tool.findUnique({
