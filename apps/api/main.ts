@@ -96,5 +96,5 @@ Deno.addSignalListener("SIGTERM", shutdown)
 
 // Every day at 00:00, cleanup temporary files and folders older than 1 week.
 Deno.cron("Temporary files cleanup", "0 0 * * *", async () => {
-  await cleanupTmpDir({})
+  await cleanupTmpDir()
 })

@@ -11,7 +11,7 @@ export const cleanupTmpDir = async ({
 }: {
   maxAgeDays?: number
   dryRun?: boolean
-}) => {
+} = {}) => {
   const now = Date.now()
   const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000
 
