@@ -1,10 +1,11 @@
 import { Command, EnumType } from "@cliffy/command"
 import { createYoutubeAdapter } from "@relish/source-adapters/youtube"
+import { withContainer } from "@relish/utils/di"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
 import { container } from "~/cli.container.ts"
 
-const youtube = createYoutubeAdapter(container)
+const youtube = withContainer(container, createYoutubeAdapter)
 
 const findVideosCommand = new Command()
   .name("find")

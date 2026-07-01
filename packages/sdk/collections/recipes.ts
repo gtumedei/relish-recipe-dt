@@ -1,7 +1,7 @@
 import { Prisma, Recipe } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
-import { ListResult, PAGE_SIZE } from "~/shared.ts"
+import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
 
 export type RecipeListParams = {
   page?: number
@@ -53,15 +53,15 @@ export function createRecipesClient(this: Requires<"db">) {
         db.recipe.findMany({
           where,
           orderBy: [primaryOrderBy, { id: "asc" }],
-          skip: (page - 1) * PAGE_SIZE,
-          take: PAGE_SIZE,
+          skip: (page - 1) * DEFAULT_PAGE_SIZE,
+          take: DEFAULT_PAGE_SIZE,
         }),
       ])
 
       return {
         items,
         page,
-        pageCount: Math.ceil(totalItemCount / PAGE_SIZE),
+        pageCount: Math.ceil(totalItemCount / DEFAULT_PAGE_SIZE),
         totalItemCount,
       }
     },

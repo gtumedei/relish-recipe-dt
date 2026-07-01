@@ -52,7 +52,7 @@ export async function extractRecipe(this: Requires<"logger">, text: string) {
   logger.i("Extracting recipe from text")
   const { object: initialRecipes } = await generateObject({
     model: gpt4oMini,
-    system: extractionPrompt /* "Convert this text into a list of structured recipes." */,
+    system: extractionPrompt,
     schema: z.object({
       result: z.array(InitialRecipeSchema),
       confidence: z.number().min(0).max(1).describe("How certain you are about the end result"),

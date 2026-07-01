@@ -1,7 +1,8 @@
 import { SdkClient } from "@relish/sdk"
+import { SourceAdapter } from "@relish/source-adapters"
 import { PrismaClient } from "@relish/storage"
-import { Logger } from "./logger.ts"
 import { AsyncLocalStorage } from "node:async_hooks"
+import { Logger } from "./logger.ts"
 
 function createDIStorage<TContainer extends object>() {
   const storage = new AsyncLocalStorage<TContainer>()
@@ -40,6 +41,9 @@ export type Container = {
   logger: Logger
   db: PrismaClient
   sdk: SdkClient
+  adapters: {
+    youtube: SourceAdapter
+  }
 }
 
 export type Requires<TDeps extends keyof Container> = Pick<Container, TDeps> | void

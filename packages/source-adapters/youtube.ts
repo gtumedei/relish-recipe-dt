@@ -2,7 +2,7 @@ import { env } from "@relish/env"
 import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
 import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
-import { Container } from "@relish/utils/di"
+import { Requires, resolve } from "@relish/utils/di"
 import {
   describeVideo,
   describeVideoFrames,
@@ -14,7 +14,7 @@ import {
 } from "@relish/utils/video"
 import { join } from "@std/path"
 import dayjs from "dayjs"
-import { ExtractedRecipeWithMetadata } from "./mod.ts"
+import { ExtractedRecipeWithMetadata, SourceAdapter } from "./mod.ts"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
@@ -36,8 +36,8 @@ type YoutubeSearchParameters = {
   relevanceLanguage?: string // http://www.loc.gov/standards/iso639-2/php/code_list.php
 }
 
-type PartialYoutubeSearchParameters = Pick<YoutubeSearchParameters, "q"> &
-  Partial<YoutubeSearchParameters>
+/* type PartialYoutubeSearchParameters = Pick<YoutubeSearchParameters, "q"> &
+  Partial<YoutubeSearchParameters> */
 
 type YoutubeSearchResult = {
   kind: string
@@ -68,11 +68,12 @@ export const parseVideoUrlOrId = (videoURLOrID: string) => {
     : { url: `https://youtube.com/watch?v=${videoURLOrID}`, id: videoURLOrID }
 }
 
-export const createYoutubeAdapter = (container: Container) => {
-  const { logger } = container
+export function createYoutubeAdapter(this: Requires<"logger">) {
+  const { logger } = resolve(this)
 
   const youtube = {
-    executeFullPipeline: async (
+    // TODO: restore or fully delete
+    /* executeFullPipeline: async (
       params: { data: YoutubeSearchResult } | PartialYoutubeSearchParameters,
     ) => {
       const data =
@@ -132,9 +133,9 @@ export const createYoutubeAdapter = (container: Container) => {
         }
       }
       return recipes
-    },
+    }, */
 
-    findVideos: async (params: PartialYoutubeSearchParameters) => {
+    findDishSources: async ({ dish }) => {
       const defaultParams = {
         key: env.YOUTUBE_API_KEY,
         q: "food",
@@ -144,21 +145,52 @@ export const createYoutubeAdapter = (container: Container) => {
         order: "relevance",
         publishedAfter: dayjs().startOf("D").subtract(1, "w").toISOString(), // Fetch videos uploaded in the last week
       } satisfies YoutubeSearchParameters
-      const allParams = { ...defaultParams, ...params }
+      const allParams = { ...defaultParams, ...JSON.parse(dish.searchMetadata.youtube ?? "{}") }
+
       logger.i("Fetching food data from YouTube with the following parameters: ", allParams)
       const url = `${BASE_URL}?${new URLSearchParams(allParams).toString()}`
       const res = await fetch(url)
-      const data = (await res.json()) as YoutubeSearchResult
+      const data = ((await res.json()) as YoutubeSearchResult).items.map((it) => ({
+        url: parseVideoUrlOrId(it.id.videoId).url,
+        ...it,
+      }))
+
+      logger.i("Evaluating recipe likelihood for each video")
+      const scores: (number | null)[] = []
+      for (const item of data) {
+        try {
+          const score = await evaluateRecipeLikelihood(JSON.stringify(item, null, 2))
+          scores.push(score)
+          logger.i(`[${item.id.videoId}] Recipe likelihood: ${score}`)
+        } catch (e) {
+          scores.push(null)
+          logger.e(`[${item.id.videoId}] Failed to compute recipe likelihood`, e)
+        }
+      }
+
+      let items = data.map((item, i) => ({ score: scores[i], metadata: item }))
+      const filename = join(TMP_DIR, "youtube-scored-results.json")
+      logger.i(`Saving results to ${filename}`)
+      await Deno.writeTextFile(filename, JSON.stringify(items, null, 2))
+
+      logger.i(`Discarding videos with likelihood less than ${RECIPE_LIKELIHOOD_THRESHOLD}/5`)
+      items = items.filter(
+        (item) => item.score !== null && item.score >= RECIPE_LIKELIHOOD_THRESHOLD,
+      )
+
       return data
     },
 
-    executeVideoPipeline: async ({ videoUrlOrId }: { videoUrlOrId: string }) => {
-      const { id: videoId } = parseVideoUrlOrId(videoUrlOrId)
+    processDishFromSource: async ({ source }) => {
+      const { id: videoId } = parseVideoUrlOrId(source.url)
 
       logger.i(`[${videoId}] Downloading video...`)
       const videoDir = join(TMP_DIR, videoId)
-      const videoPath = await youtube.downloadVideo({ videoUrlOrId, outDir: videoDir })
-      const captionsPath = await youtube.downloadVideoCaptions({ videoUrlOrId, outDir: videoDir })
+      const videoPath = await youtube.downloadVideo({ videoUrlOrId: videoId, outDir: videoDir })
+      const captionsPath = await youtube.downloadVideoCaptions({
+        videoUrlOrId: videoId,
+        outDir: videoDir,
+      })
 
       logger.i(`[${videoId}] Getting video metadata...`)
       const duration = await getVideoDuration(videoPath)
@@ -206,10 +238,12 @@ export const createYoutubeAdapter = (container: Container) => {
       const recipe = await extractRecipe(description)
 
       logger.i(`[${videoId}] Fetching detailed metadata...`)
-      const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId })
+      const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId: videoId })
 
-      const recipesWithMetadata = recipe.result.map((r) => ({
+      const recipesWithMetadata: ExtractedRecipeWithMetadata[] = recipe.result.map((r, i) => ({
         ...r,
+        source: source.url,
+        index: i,
         language: metadata.language as string | undefined,
         location: metadata.location as string | undefined,
         modelConfidence: recipe.confidence,
@@ -293,6 +327,6 @@ export const createYoutubeAdapter = (container: Container) => {
         return null
       }
     },
-  }
+  } satisfies SourceAdapter
   return youtube
 }

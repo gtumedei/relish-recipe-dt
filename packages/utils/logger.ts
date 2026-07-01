@@ -21,12 +21,12 @@ type LogHistoryEntry = {
   payload: any[]
 }
 
-export const createLogger = (params?: {
+export const createLogger = ({
+  afterLog = async () => {},
+}: {
   afterLog?: (entry: LogHistoryEntry) => Promise<void>
-}): Logger => {
+} = {}): Logger => {
   let history: Logger["history"] = []
-
-  const afterLog = params?.afterLog ?? (async () => {})
 
   const logger: Logger = {
     i: (...args) => {

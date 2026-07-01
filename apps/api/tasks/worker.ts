@@ -23,7 +23,7 @@ const worker = new Worker(
     logger.i("Task completed", res)
     return res
   },
-  { connection: { host: "localhost", port: 6379 }, concurrency: 2 },
+  { connection: { host: "localhost", port: 6379 }, concurrency: 10 },
 )
 
 // Sync task status on the database

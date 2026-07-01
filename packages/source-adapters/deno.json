@@ -1,6 +1,7 @@
 {
   "name": "@relish/source-adapters",
   "exports": {
+    ".": "./mod.ts",
     "./youtube": "./youtube.ts"
   }
 }
