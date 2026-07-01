@@ -9,7 +9,7 @@ import { Requires, resolve } from "@relish/utils/di"
 export async function processAllDishes(this: Requires<"sdk" | "logger" | "adapters">) {
   const { sdk, logger } = resolve(this)
 
-  const dishes = await sdk.dishes.list()
+  const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
 
   await Promise.all(dishes.items.map((dish) => processDish({ dish })))

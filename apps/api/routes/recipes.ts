@@ -96,7 +96,7 @@ export const recipeRoutes = new Hono()
 
       try {
         const list = await sdk.recipes.list({
-          page: query.page,
+          pagination: { pageNumber: query.page },
           sort: query.sort,
           order: query.order,
           filter: {

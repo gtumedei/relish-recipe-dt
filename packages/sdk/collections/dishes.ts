@@ -5,7 +5,7 @@ import { SdkError } from "~/error.ts"
 import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
 
 export type DishListParams = {
-  page?: number
+  pagination: { pageNumber: number; pageSize?: number } | false
   order?: Prisma.SortOrder
   sort?: "name" | "createdAt"
   filter?: {
@@ -13,17 +13,31 @@ export type DishListParams = {
   }
 }
 
+export type DishSearchParams = {
+  query: string
+  limit?: number
+  minScore?: number
+}
+
+export type DishSearchResult = {
+  dish: Dish
+  score: number
+}
+
 export function createDishesClient(this: Requires<"db">) {
   const { db } = resolve(this)
 
   return {
-    list: async (params?: DishListParams): Promise<ListResult<Dish>> => {
-      const page = Math.max(1, Math.floor(params?.page ?? 1))
-      const order = params?.order ?? "desc"
-      const sort = params?.sort ?? "createdAt"
+    list: async (params: DishListParams): Promise<ListResult<Dish>> => {
+      const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1
+      const pageSize = params.pagination
+        ? (params.pagination.pageSize ?? DEFAULT_PAGE_SIZE)
+        : undefined
+      const order = params.order ?? "desc"
+      const sort = params.sort ?? "createdAt"
 
       const where: Prisma.DishWhereInput = {}
-      if (params?.filter?.name?.trim()) {
+      if (params.filter?.name?.trim()) {
         where.name = { contains: params.filter.name.trim() }
       }
 
@@ -35,17 +49,70 @@ export function createDishesClient(this: Requires<"db">) {
         db.dish.findMany({
           where,
           orderBy: [primaryOrderBy, { id: "asc" }],
-          skip: (page - 1) * DEFAULT_PAGE_SIZE,
-          take: DEFAULT_PAGE_SIZE,
+          ...(params.pagination ? { skip: (page - 1) * pageSize!, take: pageSize } : {}),
         }),
       ])
 
       return {
         items,
         page,
-        pageCount: Math.ceil(totalItemCount / DEFAULT_PAGE_SIZE),
+        pageCount: params.pagination ? Math.ceil(totalItemCount / pageSize!) : 1,
         totalItemCount,
       }
+    },
+
+    search: async (params: DishSearchParams): Promise<DishSearchResult[]> => {
+      if (!params.query.trim())
+        throw new SdkError({ code: "BAD_REQUEST", message: "Search query must not be empty" })
+
+      const queryEmbedding = await toEmbedding(params.query.trim())
+      const limit = params.limit ?? DEFAULT_PAGE_SIZE
+
+      const res = await db.dish.aggregateRaw({
+        pipeline: [
+          {
+            $vectorSearch: {
+              index: "Dish_nameEmbedding_vector_index",
+              path: "nameEmbedding",
+              queryVector: queryEmbedding,
+              numCandidates: 200,
+              limit,
+            },
+          },
+          {
+            $project: {
+              name: 1,
+              description: 1,
+              media: 1,
+              searchMetadata: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              score: { $meta: "vectorSearchScore" },
+            },
+          },
+        ],
+      })
+
+      if (!Array.isArray(res)) return []
+
+      let results = res.map((item: any) => ({
+        dish: {
+          id: item._id?.$oid ?? item._id,
+          name: item.name,
+          description: item.description,
+          media: item.media ?? [],
+          searchMetadata: item.searchMetadata ?? {},
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        } as Dish,
+        score: item.score,
+      }))
+
+      if (params.minScore != null) {
+        results = results.filter((r) => r.score >= params.minScore!)
+      }
+
+      return results
     },
 
     create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {

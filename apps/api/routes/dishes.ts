@@ -65,12 +65,52 @@ export const dishRoutes = new Hono()
       const query = c.req.valid("query")
       try {
         const list = await sdk.dishes.list({
-          page: query.page,
+          pagination: { pageNumber: query.page },
           sort: query.sort,
           order: query.order,
           filter: { name: query.name },
         })
         return c.json(list)
+      } catch (error) {
+        return sdkErrorResponse(c, error)
+      }
+    },
+  )
+
+  .get(
+    "/search",
+    requireAccessRule("READ"),
+    describeRoute({
+      responses: {
+        200: json({
+          description: "Dish semantic search results",
+          schema: z.array(
+            z.object({
+              dish: DishSchema,
+              score: z.number(),
+            }),
+          ),
+        }),
+        400: validationError,
+      },
+    }),
+    validator(
+      "query",
+      z.object({
+        q: z.string().min(1),
+        limit: z.coerce.number().int().min(1).max(50).default(10),
+        minScore: z.coerce.number().min(0).max(1).optional(),
+      }),
+    ),
+    async (c) => {
+      const query = c.req.valid("query")
+      try {
+        const results = await sdk.dishes.search({
+          query: query.q,
+          limit: query.limit,
+          minScore: query.minScore,
+        })
+        return c.json(results)
       } catch (error) {
         return sdkErrorResponse(c, error)
       }

@@ -5,7 +5,7 @@ import { SdkError } from "~/error.ts"
 import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
 
 export type ToolListParams = {
-  page?: number
+  pagination: { pageNumber: number; pageSize?: number } | false
   order?: Prisma.SortOrder
   sort?: "createdAt"
   filter?: {
@@ -13,16 +13,30 @@ export type ToolListParams = {
   }
 }
 
+export type ToolSearchParams = {
+  query: string
+  limit?: number
+  minScore?: number
+}
+
+export type ToolSearchResult = {
+  tool: Tool
+  score: number
+}
+
 export function createToolsClient(this: Requires<"db">) {
   const { db } = resolve(this)
 
   return {
-    list: async (params?: ToolListParams): Promise<ListResult<Tool>> => {
-      const page = Math.max(1, Math.floor(params?.page ?? 1))
-      const order = params?.order ?? "desc"
+    list: async (params: ToolListParams): Promise<ListResult<Tool>> => {
+      const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1
+      const pageSize = params.pagination
+        ? (params.pagination.pageSize ?? DEFAULT_PAGE_SIZE)
+        : undefined
+      const order = params.order ?? "desc"
 
       const where: Prisma.ToolWhereInput = {}
-      if (params?.filter?.name?.trim()) {
+      if (params.filter?.name?.trim()) {
         where.name = { contains: params.filter.name.trim() }
       }
 
@@ -31,17 +45,64 @@ export function createToolsClient(this: Requires<"db">) {
         db.tool.findMany({
           where,
           orderBy: [{ createdAt: order }, { id: "asc" }],
-          skip: (page - 1) * DEFAULT_PAGE_SIZE,
-          take: DEFAULT_PAGE_SIZE,
+          ...(params.pagination ? { skip: (page - 1) * pageSize!, take: pageSize } : {}),
         }),
       ])
 
       return {
         items,
         page,
-        pageCount: Math.ceil(totalItemCount / DEFAULT_PAGE_SIZE),
+        pageCount: params.pagination ? Math.ceil(totalItemCount / pageSize!) : 1,
         totalItemCount,
       }
+    },
+
+    search: async (params: ToolSearchParams): Promise<ToolSearchResult[]> => {
+      if (!params.query.trim())
+        throw new SdkError({ code: "BAD_REQUEST", message: "Search query must not be empty" })
+
+      const queryEmbedding = await toEmbedding(params.query.trim())
+      const limit = params.limit ?? DEFAULT_PAGE_SIZE
+
+      const res = await db.tool.aggregateRaw({
+        pipeline: [
+          {
+            $vectorSearch: {
+              index: "Tool_nameEmbedding_vector_index",
+              path: "nameEmbedding",
+              queryVector: queryEmbedding,
+              numCandidates: 200,
+              limit,
+            },
+          },
+          {
+            $project: {
+              name: 1,
+              media: 1,
+              createdAt: 1,
+              score: { $meta: "vectorSearchScore" },
+            },
+          },
+        ],
+      })
+
+      if (!Array.isArray(res)) return []
+
+      let results = res.map((item: any) => ({
+        tool: {
+          id: item._id?.$oid ?? item._id,
+          name: item.name,
+          media: item.media ?? [],
+          createdAt: item.createdAt,
+        } as Tool,
+        score: item.score,
+      }))
+
+      if (params.minScore != null) {
+        results = results.filter((r) => r.score >= params.minScore!)
+      }
+
+      return results
     },
 
     create: async (params: { data: Omit<Prisma.ToolCreateInput, "nameEmbedding"> }) => {

@@ -4,7 +4,7 @@ import { SdkError } from "~/error.ts"
 import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
 
 export type RecipeInstanceListParams = {
-  page?: number
+  pagination: { pageNumber: number; pageSize?: number } | false
   order?: Prisma.SortOrder
   sort?: "totalPrepSeconds" | "createdAt" | "modelConfidence"
   filter?: {
@@ -22,34 +22,37 @@ export function createRecipeInstancesClient(this: Requires<"db">) {
   const { db } = resolve(this)
 
   return {
-    list: async (params?: RecipeInstanceListParams): Promise<ListResult<RecipeInstance>> => {
-      const page = Math.max(1, Math.floor(params?.page ?? 1))
-      const order = params?.order ?? "desc"
-      const sort = params?.sort ?? "createdAt"
+    list: async (params: RecipeInstanceListParams): Promise<ListResult<RecipeInstance>> => {
+      const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1
+      const pageSize = params.pagination
+        ? (params.pagination.pageSize ?? DEFAULT_PAGE_SIZE)
+        : undefined
+      const order = params.order ?? "desc"
+      const sort = params.sort ?? "createdAt"
 
       const where: Prisma.RecipeInstanceWhereInput = {}
-      if (params?.filter?.dishId) {
+      if (params.filter?.dishId) {
         where.dishId = params.filter.dishId
       }
-      if (params?.filter?.ingredient) {
+      if (params.filter?.ingredient) {
         where.ingredients = { some: { ingredientOrDishId: params.filter.ingredient } }
       }
-      if (params?.filter?.tool) {
+      if (params.filter?.tool) {
         where.tools = { some: { tool: params.filter.tool } }
       }
       if (
-        typeof params?.filter?.totalPrepSecondsMin === "number" ||
-        typeof params?.filter?.totalPrepSecondsMax === "number"
+        typeof params.filter?.totalPrepSecondsMin === "number" ||
+        typeof params.filter?.totalPrepSecondsMax === "number"
       ) {
         where.totalPrepSeconds = {
-          gte: params?.filter?.totalPrepSecondsMin,
-          lte: params?.filter?.totalPrepSecondsMax,
+          gte: params.filter?.totalPrepSecondsMin,
+          lte: params.filter?.totalPrepSecondsMax,
         }
       }
-      if (params?.filter?.location?.trim()) {
+      if (params.filter?.location?.trim()) {
         where.location = { is: { string: { contains: params.filter.location.trim() } } }
       }
-      if (params?.filter?.language?.trim()) {
+      if (params.filter?.language?.trim()) {
         where.language = params.filter.language.trim()
       }
 
@@ -65,15 +68,14 @@ export function createRecipeInstancesClient(this: Requires<"db">) {
         db.recipeInstance.findMany({
           where,
           orderBy: [primaryOrderBy, { id: "asc" }],
-          skip: (page - 1) * DEFAULT_PAGE_SIZE,
-          take: DEFAULT_PAGE_SIZE,
+          ...(params.pagination ? { skip: (page - 1) * pageSize!, take: pageSize } : {}),
         }),
       ])
 
       return {
         items,
         page,
-        pageCount: Math.ceil(totalItemCount / DEFAULT_PAGE_SIZE),
+        pageCount: params.pagination ? Math.ceil(totalItemCount / pageSize!) : 1,
         totalItemCount,
       }
     },
