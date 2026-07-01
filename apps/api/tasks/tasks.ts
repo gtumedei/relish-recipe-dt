@@ -1,5 +1,6 @@
 import { Dish, Prisma } from "@relish/storage"
 import { isSemanticMatch } from "@relish/recipe-processing"
+import { env } from "@relish/env"
 import { Requires, resolve } from "@relish/utils/di"
 
 // /api/tasks/dishes/process
@@ -150,7 +151,12 @@ export async function processDishFromSource(
         modelConfidence: extractedRecipe.modelConfidence,
         totalPrepSeconds: totalPrepSeconds || undefined,
         language: extractedRecipe.language,
-        location: { string: extractedRecipe.location ?? "", geonameId: null }, // TODO: populate geonameId
+        location: extractedRecipe.location
+          ? {
+              string: extractedRecipe.location,
+              geonameId: await resolveGeonameId(extractedRecipe.location),
+            }
+          : null,
         media: [], // TODO: populate media
         ingredients: [...ingredientAggregate.entries()].map(([id, { quantity, unit }]) => ({
           ingredientOrDishId: id,
@@ -243,4 +249,24 @@ async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Prom
   const created = await sdk.tools.create({ data: { name } })
   logger.i(`Created new tool "${name}" (${created.id})`)
   return created.id
+}
+
+/**
+ * Look up a GeoNames ID for a location string using the GeoNames search API.
+ * Returns the geonameId string if found, or null if the query is empty or no results are returned.
+ */
+async function resolveGeonameId(location: string | undefined): Promise<string | null> {
+  if (!location?.trim()) return null
+
+  const params = new URLSearchParams({
+    q: location.trim(),
+    username: env.GEONAMES_USERNAME,
+    maxRows: "1",
+  })
+
+  const res = await fetch(`https://api.geonames.org/searchJSON?${params}`)
+  if (!res.ok) return null
+
+  const data = (await res.json()) as { geonames?: Array<{ geonameId: string }> }
+  return data.geonames?.[0]?.geonameId ?? null
 }
