@@ -55,7 +55,7 @@ export async function extractRecipe(this: Requires<"logger">, text: string) {
     system: extractionPrompt,
     schema: z.object({
       result: z.array(InitialRecipeSchema),
-      confidence: z.number().min(0).max(1).describe("How certain you are about the end result"),
+      confidence: z.number().min(0).max(1).describe("Confidence level of the end result"),
     }),
     prompt: text,
   })

@@ -1,4 +1,5 @@
-import { Dish } from "@relish/storage"
+import { Dish, Prisma } from "@relish/storage"
+import { isSemanticMatch } from "@relish/recipe-processing"
 import { Requires, resolve } from "@relish/utils/di"
 
 // /api/tasks/dishes/process
@@ -36,10 +37,10 @@ export async function processDish(
 
 // /api/tasks/dishes/{dishId}/process/{sourceUrl}?type={sourceType} Manually extract the recipe of a dish (by dish ID + URL to fetch)
 export async function processDishFromSource(
-  this: Requires<"sdk" | "logger" | "adapters">,
+  this: Requires<"db" | "sdk" | "logger" | "adapters">,
   params: { dish: Dish; adapter: string; sourceUrl: string },
 ) {
-  const { sdk, logger, adapters } = resolve(this)
+  const { db, sdk, logger, adapters } = resolve(this)
   const { dish } = params
 
   const adapter = adapters[params.adapter as keyof typeof adapters]
@@ -52,5 +53,194 @@ export async function processDishFromSource(
     source: { url: params.sourceUrl },
   })
 
-  // TODO: map ingredients and tools to db entities, create them if needed, then insert the new recipe instance
+  // Ensure the source URL is tracked in the database
+  let processedUrl = await db.processedUrl.findUnique({ where: { url: params.sourceUrl } })
+  if (!processedUrl) {
+    processedUrl = await db.processedUrl.create({ data: { url: params.sourceUrl } })
+  }
+
+  for (const extractedRecipe of extractedRecipes) {
+    logger.i(
+      `[${dish.id}] Processing recipe: "${extractedRecipe.dish}" (confidence: ${extractedRecipe.modelConfidence})`,
+    )
+
+    // Collect all unique ingredient names across all steps
+    const allIngredientNames = [
+      ...new Set(
+        extractedRecipe.steps.flatMap((step) => step.ingredients.map((i) => i.ingredientName)),
+      ),
+    ]
+    // Resolve each ingredient name to a database entity reference
+    const ingredientIdMap = new Map<string, string>()
+    for (const name of allIngredientNames) {
+      ingredientIdMap.set(name, await resolveIngredient(name))
+    }
+
+    // Collect all unique tool names (primary + alternatives) across all steps
+    const allToolNames = [
+      ...new Set(
+        extractedRecipe.steps.flatMap((step) =>
+          step.tools.flatMap((t) => [t.toolName, ...t.alternativeTools]),
+        ),
+      ),
+    ]
+    // Resolve each tool name to a database entity reference
+    const toolIdMap = new Map<string, string>()
+    for (const name of allToolNames) {
+      toolIdMap.set(name, await resolveTool(name))
+    }
+
+    // Build steps with resolved database references
+    const steps: Prisma.UserStepCreateInput[] = extractedRecipe.steps.map((step) => ({
+      description: step.description,
+      prepSeconds: step.prepSeconds ?? undefined,
+      ingredients: step.ingredients.map((i) => ({
+        ingredientOrDishId: ingredientIdMap.get(i.ingredientName)!,
+        quantity: i.quantity ?? undefined,
+        unit: i.unit ?? undefined,
+      })),
+      tools: step.tools.map((t) => ({
+        tool: toolIdMap.get(t.toolName)!,
+        alternatives: t.alternativeTools.map((name) => toolIdMap.get(name)!),
+      })),
+    }))
+
+    // Aggregate ingredients across all steps (deduplicated by entity ID)
+    const ingredientAggregate = new Map<string, { quantity: number | null; unit: string | null }>()
+    for (const step of extractedRecipe.steps) {
+      for (const i of step.ingredients) {
+        const id = ingredientIdMap.get(i.ingredientName)!
+        const existing = ingredientAggregate.get(id)
+        if (existing) {
+          existing.quantity = (existing.quantity ?? 0) + (i.quantity ?? 0)
+        } else {
+          ingredientAggregate.set(id, {
+            quantity: i.quantity ?? null,
+            unit: i.unit ?? null,
+          })
+        }
+      }
+    }
+
+    // Aggregate tools across all steps (deduplicated by entity ID)
+    const toolAggregate = new Map<string, Set<string>>()
+    for (const step of extractedRecipe.steps) {
+      for (const t of step.tools) {
+        const id = toolIdMap.get(t.toolName)!
+        if (!toolAggregate.has(id)) {
+          toolAggregate.set(id, new Set())
+        }
+        for (const alt of t.alternativeTools) {
+          toolAggregate.get(id)!.add(toolIdMap.get(alt)!)
+        }
+      }
+    }
+
+    const totalPrepSeconds = extractedRecipe.steps.reduce(
+      (sum, step) => sum + (step.prepSeconds ?? 0),
+      0,
+    )
+
+    // Create the recipe instance in the database
+    const recipeInstance = await sdk.recipeInstances.create({
+      data: {
+        dishId: dish.id,
+        sourceId: processedUrl.id,
+        index: extractedRecipe.index,
+        modelConfidence: extractedRecipe.modelConfidence,
+        totalPrepSeconds: totalPrepSeconds || undefined,
+        language: extractedRecipe.language,
+        location: { string: extractedRecipe.location ?? "", geonameId: null }, // TODO: populate geonameId
+        media: [], // TODO: populate media
+        ingredients: [...ingredientAggregate.entries()].map(([id, { quantity, unit }]) => ({
+          ingredientOrDishId: id,
+          quantity,
+          unit,
+        })),
+        tools: [...toolAggregate.entries()].map(([id, alternatives]) => ({
+          tool: id,
+          alternatives: [...alternatives],
+        })),
+        steps,
+      },
+    })
+
+    logger.i(`[${dish.id}] Created recipe instance ${recipeInstance.id}`)
+  }
+}
+
+/**
+ * Resolve an ingredient name to a database entity reference.
+ * Searches for existing ingredients, checks for semantic matches, and creates new entities when no match is found.
+ */
+async function resolveIngredient(this: Requires<"sdk" | "logger">, name: string): Promise<string> {
+  const { sdk, logger } = resolve(this)
+
+  const results = await sdk.ingredients.search({ query: name, limit: 3 })
+
+  for (const result of results) {
+    const candidates = [result.ingredient.name, ...result.ingredient.nameAliases]
+    const match = await isSemanticMatch("ingredient", name, candidates)
+
+    if (typeof match === "string") {
+      // Heuristic matched: the ingredient is already known under that name
+      logger.i(`Ingredient "${name}" matched existing "${result.ingredient.name}" (heuristic)`)
+      return result.ingredient.id
+    }
+
+    if (match === true) {
+      // LLM matched: add the extracted name as an alias if it's not already known
+      if (!candidates.includes(name)) {
+        await sdk.ingredients.update({
+          id: result.ingredient.id,
+          data: { nameAliases: { push: name } },
+        })
+      }
+      logger.i(`Ingredient "${name}" matched existing "${result.ingredient.name}" (LLM)`)
+      return result.ingredient.id
+    }
+  }
+
+  // No match found: create a new ingredient
+  const created = await sdk.ingredients.create({ data: { name } })
+  logger.i(`Created new ingredient "${name}" (${created.id})`)
+  return created.id
+}
+
+/**
+ * Resolve a tool name to a database entity reference.
+ * Searches for existing tools, checks for semantic matches, and creates new entities when no match is found.
+ */
+async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Promise<string> {
+  const { sdk, logger } = resolve(this)
+
+  const results = await sdk.tools.search({ query: name, limit: 3 })
+
+  for (const result of results) {
+    const candidates = [result.tool.name, ...result.tool.nameAliases]
+    const match = await isSemanticMatch("tool", name, candidates)
+
+    if (typeof match === "string") {
+      // Heuristic matched: the tool is already known under that name
+      logger.i(`Tool "${name}" matched existing "${result.tool.name}" (heuristic)`)
+      return result.tool.id
+    }
+
+    if (match === true) {
+      // LLM matched: add the extracted name as an alias if it's not already known
+      if (!candidates.includes(name)) {
+        await sdk.tools.update({
+          id: result.tool.id,
+          data: { nameAliases: { push: name } },
+        })
+      }
+      logger.i(`Tool "${name}" matched existing "${result.tool.name}" (LLM)`)
+      return result.tool.id
+    }
+  }
+
+  // No match found: create a new tool
+  const created = await sdk.tools.create({ data: { name } })
+  logger.i(`Created new tool "${name}" (${created.id})`)
+  return created.id
 }

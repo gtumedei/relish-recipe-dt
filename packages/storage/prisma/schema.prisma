@@ -17,6 +17,8 @@ model Dish {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
   name            String           @unique
   nameEmbedding   Float[]
+  // Aliases to the dish name, useful to skip semantic search
+  nameAliases     String[]         @default([])
   description     String
   recipes         Recipe[]
   media           Media[]
@@ -53,7 +55,7 @@ model RecipeInstance {
   modelConfidence  Float
   media            Media[]
   location         Location
-  language         String // ISO 639
+  language         String? // ISO 639
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 }
@@ -74,6 +76,8 @@ model Ingredient {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   name          String   @unique
   nameEmbedding Float[]
+  // Aliases to the ingredient name, useful to skip semantic search
+  nameAliases   String[] @default([])
   media         Media[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -102,6 +106,8 @@ model Tool {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   name          String   @unique
   nameEmbedding Float[]
+  // Aliases to the tool name, useful to skip semantic search
+  nameAliases   String[] @default([])
   media         Media[]
   createdAt     DateTime @default(now())
 }
