@@ -2,31 +2,45 @@ import { env } from "@relish/env"
 import { isSemanticMatch } from "@relish/recipe-processing"
 import { Prisma } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
-import { queue } from "~/tasks/queue.ts"
+import { Job } from "bullmq"
+import { enqueueSubJob, queueEvents } from "~/tasks/queue.ts"
 
 /** Fetch all the dishes in the database. Then, for each dish, call `processDish` to find new dish sources. */
 export async function processAllDishes(
   this: Requires<"sdk" | "logger" | "adapters">,
-  { enqueue = false }: { enqueue?: boolean } = {},
+  { taskId }: { taskId?: string } = {},
 ) {
   const { sdk, logger } = resolve(this)
 
   const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
 
+  const childJobs: Job[] = []
+
   for (const dish of dishes.items) {
-    if (enqueue) {
-      await queue.add("processDish", { type: "processDish", dishId: dish.id })
+    if (taskId) {
+      const childJob = await enqueueSubJob({
+        type: "processDish",
+        dishId: dish.id,
+        parentTaskId: taskId,
+      })
+      childJobs.push(childJob)
     } else {
-      await processDish({ dishId: dish.id })
+      await processDish({ dishId: dish.id, taskId })
     }
+  }
+
+  if (childJobs.length > 0) {
+    logger.i(`Waiting for ${childJobs.length} child jobs to complete`)
+    await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
+    logger.i(`All ${childJobs.length} child jobs completed`)
   }
 }
 
 /** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
 export async function processDish(
   this: Requires<"sdk" | "logger" | "adapters">,
-  { dishId, enqueue = false }: { dishId: string; enqueue?: boolean },
+  { dishId, taskId = undefined }: { dishId: string; taskId?: string },
 ) {
   const { sdk, logger, adapters } = resolve(this)
 
@@ -35,17 +49,20 @@ export async function processDish(
 
   logger.i(`[${dish.id}] Processing "${dish.name}"`)
 
+  const childJobs = []
   for (const [adapterName, adapter] of Object.entries(adapters)) {
     const sources = await adapter.findDishSources({ dish })
     logger.i(`[${dish.id}] Fetched ${sources.length} sources using the "${adapterName}" adapter`)
     for (const source of sources) {
-      if (enqueue) {
-        await queue.add("processDishFromSource", {
+      if (taskId) {
+        const childJob = await enqueueSubJob({
           type: "processDishFromSource",
           dishId: dish.id,
           adapter: adapterName,
           sourceUrl: source.url,
+          parentTaskId: taskId,
         })
+        childJobs.push(childJob)
       } else {
         await processDishFromSource({
           dishId: dish.id,
@@ -54,6 +71,12 @@ export async function processDish(
         })
       }
     }
+  }
+
+  if (childJobs.length > 0) {
+    logger.i(`[${dish.id}] Waiting for ${childJobs.length} child jobs to complete`)
+    await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
+    logger.i(`[${dish.id}] All ${childJobs.length} child jobs completed`)
   }
 }
 

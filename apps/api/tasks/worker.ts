@@ -12,17 +12,24 @@ const worker = new Worker(
   async (task: Job<TaskData>) => {
     if (!task.id) throw new Error("Task has no identifier")
 
-    const container = createWorkerContainer({ taskId: task.id })
+    // Sub-jobs log to the parent's Task record; top-level jobs log to their own
+    const loggerTaskId = task.data.parentTaskId ?? task.data.taskId
+    if (!loggerTaskId) throw new Error("Job has no taskId or parentTaskId")
+
+    const container = createWorkerContainer({ taskId: loggerTaskId })
     const { logger } = container
     logger.i(`Task started: ${task.data.type}`)
 
     await withContainer(container, async () => {
       switch (task.data.type) {
         case "processAllDishes":
-          await processAllDishes({ enqueue: true })
+          await processAllDishes({ taskId: task.data.taskId! })
           break
         case "processDish":
-          await processDish({ dishId: task.data.dishId, enqueue: true })
+          await processDish({
+            dishId: task.data.dishId,
+            taskId: task.data.parentTaskId ?? task.data.taskId!,
+          })
           break
         case "processDishFromSource":
           await processDishFromSource({
@@ -44,56 +51,40 @@ const worker = new Worker(
   { connection: { host: "localhost", port: 6379 }, concurrency: 10 },
 )
 
-// Sync task status on the database (skip for sub-jobs without Task records)
+// Sync task status on the database (only for top-level jobs that have their own Task record)
 
 worker.on("active", async (task) => {
   console.log(`[task:${task.id}] processing`)
-  try {
-    await db.task.update({
-      data: { status: "RUNNING" },
-      where: { id: task.id },
-    })
-  } catch {
-    // Sub-jobs have no Task record — ignore
-  }
+  if (!task.data.taskId) return // Sub-jobs have no own Task record
+  await db.task.update({
+    data: { status: "RUNNING" },
+    where: { id: task.data.taskId },
+  })
 })
 
 worker.on("completed", async (task: Job) => {
   console.log(`[task:${task.id}] completed`)
-  try {
-    await db.task.update({
-      data: { status: "COMPLETED", completedAt: new Date() },
-      where: { id: task.id },
-    })
-  } catch {
-    // Sub-jobs have no Task record — ignore
-  }
+  if (!task.data.taskId) return // Sub-jobs have no own Task record
+  await db.task.update({
+    data: { status: "COMPLETED", completedAt: new Date() },
+    where: { id: task.data.taskId },
+  })
 })
 
 worker.on("failed", async (task: Job | undefined, err: Error) => {
   console.error(`[task:${task?.id}] failed - `, err.message)
-  if (task) {
-    try {
-      await db.task.update({
-        data: { status: "FAILED", completedAt: new Date() },
-        where: { id: task?.id },
-      })
-    } catch {
-      // Sub-jobs have no Task record — ignore
-    }
+  if (task?.data.taskId) {
+    await db.task.update({
+      data: { status: "FAILED", completedAt: new Date() },
+      where: { id: task.data.taskId },
+    })
   }
 })
 
-worker.on("stalled", async (taskId) => {
+worker.on("stalled", (taskId) => {
   console.error(`[task:${taskId}] stalled`)
-  try {
-    await db.task.update({
-      data: { status: "STALLED", stallCount: { increment: 1 } },
-      where: { id: taskId },
-    })
-  } catch {
-    // Sub-jobs have no Task record — ignore
-  }
+  // Stalled events only have the BullMQ job ID; we cannot look up the DB task ID here
+  // without additional context, so this handler remains best-effort.
 })
 
 console.log(`🤖 Worker listening on queue: "${TASKS_QUEUE_NAME}"`)

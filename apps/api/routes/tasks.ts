@@ -5,7 +5,7 @@ import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import { IdParamSchema, ObjectIdSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
-import { enqueueTask } from "~/tasks/queue.ts"
+import { enqueueJob } from "~/tasks/queue.ts"
 
 const { db } = container
 
@@ -69,7 +69,7 @@ export const taskRoutes = new Hono()
     }),
     async (c) => {
       try {
-        const task = await enqueueTask({ type: "processAllDishes" })
+        const task = await enqueueJob({ type: "processAllDishes" })
         return c.json(task, 202)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -91,7 +91,7 @@ export const taskRoutes = new Hono()
     async (c) => {
       const { dishId } = c.req.valid("param")
       try {
-        const task = await enqueueTask({ type: "processDish", dishId })
+        const task = await enqueueJob({ type: "processDish", dishId })
         return c.json(task, 202)
       } catch (error) {
         return sdkErrorResponse(c, error)
@@ -116,7 +116,7 @@ export const taskRoutes = new Hono()
       const { adapter } = c.req.valid("query")
       try {
         const decodedSourceUrl = decodeURIComponent(sourceUrl)
-        const task = await enqueueTask({
+        const task = await enqueueJob({
           type: "processDishFromSource",
           dishId,
           adapter,
