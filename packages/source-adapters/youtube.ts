@@ -62,11 +62,13 @@ type YoutubeSearchItem = {
   }
 }
 
-export const parseVideoUrlOrId = (videoURLOrID: string) => {
+const parseVideoUrlOrId = (videoURLOrID: string) => {
   return videoURLOrID.startsWith("http")
     ? { url: videoURLOrID, id: new URL(videoURLOrID).searchParams.get("v")! }
     : { url: `https://youtube.com/watch?v=${videoURLOrID}`, id: videoURLOrID }
 }
+
+export type YoutubeSourceAdapter = ReturnType<typeof createYoutubeAdapter>
 
 export function createYoutubeAdapter(this: Requires<"logger">) {
   const { logger } = resolve(this)

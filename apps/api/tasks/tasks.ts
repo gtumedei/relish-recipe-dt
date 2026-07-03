@@ -1,29 +1,37 @@
-import { Dish, Prisma } from "@relish/storage"
-import { isSemanticMatch } from "@relish/recipe-processing"
 import { env } from "@relish/env"
+import { isSemanticMatch } from "@relish/recipe-processing"
+import { Prisma } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
+import { queue } from "~/tasks/queue.ts"
 
-// /api/tasks/dishes/process
-// - Fetch all dishes from the database
-// - For each dish, run a search with all available adapters
-// - For reach result, run the extraction pipeline with the related adapter
-// - Insert new recipe instances (plus related data) in the database
-export async function processAllDishes(this: Requires<"sdk" | "logger" | "adapters">) {
+/** Fetch all the dishes in the database. Then, for each dish, call `processDish` to find new dish sources. */
+export async function processAllDishes(
+  this: Requires<"sdk" | "logger" | "adapters">,
+  { enqueue = false }: { enqueue?: boolean } = {},
+) {
   const { sdk, logger } = resolve(this)
 
   const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
 
-  await Promise.all(dishes.items.map((dish) => processDish({ dish })))
+  for (const dish of dishes.items) {
+    if (enqueue) {
+      await queue.add("processDish", { type: "processDish", dishId: dish.id })
+    } else {
+      await processDish({ dishId: dish.id })
+    }
+  }
 }
 
-// /api/tasks/dishes/{dishId}/process Manually extract the recipe of a dish (by dish ID + URL to fetch)
+/** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
 export async function processDish(
   this: Requires<"sdk" | "logger" | "adapters">,
-  params: { dish: Dish },
+  { dishId, enqueue = false }: { dishId: string; enqueue?: boolean },
 ) {
-  const { logger, adapters } = resolve(this)
-  const { dish } = params
+  const { sdk, logger, adapters } = resolve(this)
+
+  const dish = await sdk.dishes.get({ id: dishId })
+  if (!dish) throw new Error(`Dish ${dishId} not found`)
 
   logger.i(`[${dish.id}] Processing "${dish.name}"`)
 
@@ -31,18 +39,33 @@ export async function processDish(
     const sources = await adapter.findDishSources({ dish })
     logger.i(`[${dish.id}] Fetched ${sources.length} sources using the "${adapterName}" adapter`)
     for (const source of sources) {
-      await processDishFromSource({ dish, adapter: adapterName, sourceUrl: source.url })
+      if (enqueue) {
+        await queue.add("processDishFromSource", {
+          type: "processDishFromSource",
+          dishId: dish.id,
+          adapter: adapterName,
+          sourceUrl: source.url,
+        })
+      } else {
+        await processDishFromSource({
+          dishId: dish.id,
+          adapter: adapterName,
+          sourceUrl: source.url,
+        })
+      }
     }
   }
 }
 
-// /api/tasks/dishes/{dishId}/process/{sourceUrl}?type={sourceType} Manually extract the recipe of a dish (by dish ID + URL to fetch)
+/** Process a dish source to extract recipes and store them in the database. */
 export async function processDishFromSource(
   this: Requires<"db" | "sdk" | "logger" | "adapters">,
-  params: { dish: Dish; adapter: string; sourceUrl: string },
+  params: { dishId: string; adapter: string; sourceUrl: string },
 ) {
   const { db, sdk, logger, adapters } = resolve(this)
-  const { dish } = params
+
+  const dish = await sdk.dishes.get({ id: params.dishId })
+  if (!dish) throw new Error(`Dish ${params.dishId} not found`)
 
   const adapter = adapters[params.adapter as keyof typeof adapters]
   if (!adapter) throw new Error(`Adapter ${params.adapter} not found`)

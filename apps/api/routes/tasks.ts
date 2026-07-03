@@ -4,8 +4,8 @@ import z from "zod"
 import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
-import { IdParamSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
-import { queue } from "~/tasks/queue.ts"
+import { IdParamSchema, ObjectIdSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
+import { enqueueTask } from "~/tasks/queue.ts"
 
 const { db } = container
 
@@ -60,17 +60,71 @@ export const taskRoutes = new Hono()
   )
 
   .post(
-    "/sample",
+    "/dishes/process",
     describeRoute({
+      summary: "Process all dishes",
       responses: {
-        200: json({ description: "Task", schema: z.any() }),
+        202: json({ description: "Task enqueued", schema: z.any() }),
       },
     }),
     async (c) => {
-      const task = await db.task.create({
-        data: { status: "PENDING" },
-      })
-      await queue.add("process", { foo: "bar" }, { jobId: task.id })
-      return c.json(task)
+      try {
+        const task = await enqueueTask({ type: "processAllDishes" })
+        return c.json(task, 202)
+      } catch (error) {
+        return sdkErrorResponse(c, error)
+      }
+    },
+  )
+
+  .post(
+    "/dishes/:dishId/process",
+    describeRoute({
+      summary: "Process a single dish by ID",
+      responses: {
+        202: json({ description: "Task enqueued", schema: z.any() }),
+        400: validationError,
+        404: sdkError,
+      },
+    }),
+    validator("param", z.object({ dishId: ObjectIdSchema })),
+    async (c) => {
+      const { dishId } = c.req.valid("param")
+      try {
+        const task = await enqueueTask({ type: "processDish", dishId })
+        return c.json(task, 202)
+      } catch (error) {
+        return sdkErrorResponse(c, error)
+      }
+    },
+  )
+
+  .post(
+    "/dishes/:dishId/process/:sourceUrl",
+    describeRoute({
+      summary: "Process a dish from a specific source URL",
+      responses: {
+        202: json({ description: "Task enqueued", schema: z.any() }),
+        400: validationError,
+        404: sdkError,
+      },
+    }),
+    validator("param", z.object({ dishId: ObjectIdSchema, sourceUrl: z.string() })),
+    validator("query", z.object({ adapter: z.string() })),
+    async (c) => {
+      const { dishId, sourceUrl } = c.req.valid("param")
+      const { adapter } = c.req.valid("query")
+      try {
+        const decodedSourceUrl = decodeURIComponent(sourceUrl)
+        const task = await enqueueTask({
+          type: "processDishFromSource",
+          dishId,
+          adapter,
+          sourceUrl: decodedSourceUrl,
+        })
+        return c.json(task, 202)
+      } catch (error) {
+        return sdkErrorResponse(c, error)
+      }
     },
   )

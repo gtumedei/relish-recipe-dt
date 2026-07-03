@@ -1,5 +1,5 @@
 import { SdkClient } from "@relish/sdk"
-import { SourceAdapter } from "@relish/source-adapters"
+import { YoutubeSourceAdapter } from "@relish/source-adapters/youtube"
 import { PrismaClient } from "@relish/storage"
 import { AsyncLocalStorage } from "node:async_hooks"
 import { Logger } from "./logger.ts"
@@ -42,7 +42,7 @@ export type Container = {
   db: PrismaClient
   sdk: SdkClient
   adapters: {
-    youtube: SourceAdapter
+    youtube: YoutubeSourceAdapter
   }
 }
 

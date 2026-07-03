@@ -170,12 +170,19 @@ enum AccessRule {
 
 model Task {
   id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  type        TaskType
   status      TaskStatus @default(PENDING)
   stallCount  Int        @default(0)
   logs        LogEntry[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   completedAt DateTime?
+}
+
+enum TaskType {
+  processAllDishes
+  processDish
+  processDishFromSource
 }
 
 enum TaskStatus {

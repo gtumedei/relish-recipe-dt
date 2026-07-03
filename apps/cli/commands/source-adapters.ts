@@ -1,11 +1,9 @@
 import { Command, EnumType } from "@cliffy/command"
-import { createYoutubeAdapter } from "@relish/source-adapters/youtube"
-import { withContainer } from "@relish/utils/di"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
 import { container } from "~/cli.container.ts"
 
-const youtube = withContainer(container, createYoutubeAdapter)
+const { youtube } = container.adapters
 
 const findVideosCommand = new Command()
   .name("find")
@@ -37,11 +35,11 @@ const findVideosCommand = new Command()
 const downloadVideoCommand = new Command()
   .name("download")
   .description("Download a video from YouTube.")
-  .arguments("<video-url-or-id:string> <out-dir:string>")
-  .action(async (_, videoUrlOrId, outDir) => {
+  .arguments("<video-url:string> <out-dir:string>")
+  .action(async (_, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
-    const videoPath = await youtube.downloadVideo({ videoUrlOrId, outDir })
+    const videoPath = await youtube.downloadVideo({ videoUrl, outDir })
     spinner.stop()
     console.log(`${c.green("✓")} Video downloaded to ${videoPath}`)
   })
