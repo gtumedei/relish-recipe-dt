@@ -1,8 +1,10 @@
 import { Command } from "@cliffy/command"
+import { withContainer } from "@relish/utils/di"
+import { container } from "~/cli.container.ts"
 import { apiKeysCommand } from "~/commands/api-keys.ts"
 import { envCommand } from "~/commands/env.ts"
 import { recipeProcessingCommand } from "~/commands/recipe-processing.ts"
-import { sourceAdaptersCommand } from "~/commands/source-adapters.ts"
+import { sourceAdaptersCommand } from "~/commands/source-adapters/source-adapters.ts"
 import { utilsCommand } from "~/commands/utils.ts"
 
 const mainCommand = new Command()
@@ -16,4 +18,6 @@ const mainCommand = new Command()
   .command(sourceAdaptersCommand.getName(), sourceAdaptersCommand)
   .command(utilsCommand.getName(), utilsCommand)
 
-await mainCommand.parse(Deno.args)
+withContainer(container, async () => {
+  await mainCommand.parse(Deno.args)
+})

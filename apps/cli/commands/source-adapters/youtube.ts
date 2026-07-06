@@ -1,33 +1,45 @@
-import { Command, EnumType } from "@cliffy/command"
+import { Command } from "@cliffy/command"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
 import { container } from "~/cli.container.ts"
 
-const { youtube } = container.adapters
+const {
+  sdk,
+  adapters: { youtube },
+} = container
 
-const findVideosCommand = new Command()
-  .name("find")
-  .description("Get a list of videos from YouTube APIs based on a set of criteria.")
-  .option("-m, --max-results <value:string>", "The number of videos to return.", { default: "10" })
-  .type("order", new EnumType(["date", "rating", "relevance", "title", "viewCount"]))
-  .option("-o, --order <value:order>", "How to sort videos.", { default: "relevance" })
-  .option("--published-before <value:string>", "Published before the given date (ISO format).")
-  .option("--published-after <value:string>", "Published after the given date (ISO format).")
-  .option("--location <value:string>", "Published at the given coordinates.")
-  .option("--location-radius <value:string>", "Location radius in km.")
-  .option("--language <value:string>", "Video language.")
+const findDishSourcesCommand = new Command()
+  .name("find-sources")
+  .description("Find YouTube video sources for a given dish.")
   .option("--outfile <value:string>", "Path to save the output JSON file.")
-  .arguments("<query:string>")
-  .action(async ({ outfile, ...youtubeParams }, query) => {
-    const spinner = new Spinner({ message: "Fetching video list...", color: "blue" })
-    spinner.start()
-    const res = await youtube.findVideos({ q: query, ...youtubeParams })
-    spinner.stop()
+  .arguments("<dish-id:string>")
+  .action(async ({ outfile }, dishId) => {
+    console.log(`Searching YouTube for dish ${dishId}...`)
+    const dish = await sdk.dishes.get({ id: dishId })
+    const sources = await youtube.findDishSources({ dish })
     if (outfile) {
-      await Deno.writeTextFile(outfile, JSON.stringify(res, null, 2))
+      await Deno.writeTextFile(outfile, JSON.stringify(sources, null, 2))
       console.log(`${c.green("✓")} Results saved to ${outfile}`)
     } else {
-      console.dir(res)
+      console.dir(sources)
+      console.log(`${c.green("✓")} Done`)
+    }
+  })
+
+const processDishFromSourceCommand = new Command()
+  .name("process-source")
+  .description("Process a YouTube video source and extract recipes for a given dish.")
+  .option("--outfile <value:string>", "Path to save the output JSON file.")
+  .arguments("<dish-id:string> <source-url:string>")
+  .action(async ({ outfile }, dishId, sourceUrl) => {
+    console.log(`Processing ${sourceUrl}...`)
+    const dish = await sdk.dishes.get({ id: dishId })
+    const recipes = await youtube.processDishFromSource({ dish, source: { url: sourceUrl } })
+    if (outfile) {
+      await Deno.writeTextFile(outfile, JSON.stringify(recipes, null, 2))
+      console.log(`${c.green("✓")} Recipes saved to ${outfile}`)
+    } else {
+      console.dir(recipes, { depth: null })
       console.log(`${c.green("✓")} Done`)
     }
   })
@@ -39,7 +51,7 @@ const downloadVideoCommand = new Command()
   .action(async (_, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
-    const videoPath = await youtube.downloadVideo({ videoUrl, outDir })
+    const videoPath = await youtube.downloadVideo({ videoUrlOrId: videoUrl, outDir })
     spinner.stop()
     console.log(`${c.green("✓")} Video downloaded to ${videoPath}`)
   })
@@ -68,7 +80,7 @@ const fetchDetailedMetadataCommand = new Command()
     console.log(JSON.stringify(metadata, null, 2))
   })
 
-const fullPipelineCommand = new Command()
+/* const fullPipelineCommand = new Command()
   .name("full-pipeline")
   .description("Run the full YouTube video pipeline.")
   .arguments("<search-results-path:string>")
@@ -76,34 +88,28 @@ const fullPipelineCommand = new Command()
     const data = JSON.parse(await Deno.readTextFile(searchResultsPath))
     await youtube.executeFullPipeline({ data })
     console.log(`${c.green("✓")} Done`)
-  })
+  }) */
 
-const videoPipelineCommand = new Command()
+/* const videoPipelineCommand = new Command()
   .name("video-pipeline")
   .description("Run the YouTube pipeline for a single video.")
   .arguments("<video-url-or-id:string>")
   .action(async (_, videoUrlOrId) => {
     await youtube.executeVideoPipeline({ videoUrlOrId })
     console.log(`${c.green("✓")} Done`)
-  })
+  }) */
 
-const youtubeCommand = new Command()
+export const youtubeCommand = new Command()
   .name("youtube")
   .description("Download food content from YouTube.")
   .action(() => {
     console.log(youtubeCommand.getHelp())
   })
-  .command(findVideosCommand.getName(), findVideosCommand)
+  // .command(findVideosCommand.getName(), findVideosCommand)
+  .command(findDishSourcesCommand.getName(), findDishSourcesCommand)
+  .command(processDishFromSourceCommand.getName(), processDishFromSourceCommand)
   .command(downloadVideoCommand.getName(), downloadVideoCommand)
   .command(downloadVideoCaptionsCommand.getName(), downloadVideoCaptionsCommand)
   .command(fetchDetailedMetadataCommand.getName(), fetchDetailedMetadataCommand)
-  .command(fullPipelineCommand.getName(), fullPipelineCommand)
-  .command(videoPipelineCommand.getName(), videoPipelineCommand)
-
-export const sourceAdaptersCommand = new Command()
-  .name("source-adapters")
-  .description("Download food content from online sources.")
-  .action(() => {
-    console.log(sourceAdaptersCommand.getHelp())
-  })
-  .command(youtubeCommand.getName(), youtubeCommand)
+// .command(fullPipelineCommand.getName(), fullPipelineCommand)
+// .command(videoPipelineCommand.getName(), videoPipelineCommand)
