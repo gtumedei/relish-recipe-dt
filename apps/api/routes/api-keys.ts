@@ -13,16 +13,17 @@ const ApiKeySchema = z.object({
   updatedAt: z.string(),
 })
 
-export const apiKeyRoutes = new Hono()
-  .use(describeRoute({ tags: ["API keys"] }))
+export const apiKeyRoutes = () =>
+  new Hono()
+    .use(describeRoute({ tags: ["API keys"] }))
 
-  .get(
-    "/me",
-    describeRoute({
-      description: "Provides information about the current API key.",
-      responses: {
-        200: json({ description: "API key", schema: ApiKeySchema }),
-      },
-    }),
-    (c) => c.json({ key: c.get("apiKey") }),
-  )
+    .get(
+      "/me",
+      describeRoute({
+        description: "Provides information about the current API key.",
+        responses: {
+          200: json({ description: "API key", schema: ApiKeySchema }),
+        },
+      }),
+      (c) => c.json({ key: c.get("apiKey") }),
+    )

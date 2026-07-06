@@ -39,170 +39,171 @@ const DishSchema = z.object({
   updatedAt: z.string(),
 })
 
-export const dishRoutes = new Hono()
-  .use(describeRoute({ tags: ["Dishes"] }))
-  .use(requireCollectionAccess("Dish"))
+export const dishRoutes = () =>
+  new Hono()
+    .use(describeRoute({ tags: ["Dishes"] }))
+    .use(requireCollectionAccess("Dish"))
 
-  .get(
-    "/",
-    requireAccessRule("READ"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Dish list", schema: ResourceListSchema(DishSchema) }),
-        400: validationError,
-      },
-    }),
-    validator(
-      "query",
-      z.object({
-        page: PageSchema,
-        sort: z.enum(["name", "createdAt"]).default("createdAt"),
-        order: SortOrderSchema,
-        name: z.string().optional(),
+    .get(
+      "/",
+      requireAccessRule("READ"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Dish list", schema: ResourceListSchema(DishSchema) }),
+          400: validationError,
+        },
       }),
-    ),
-    async (c) => {
-      const query = c.req.valid("query")
-      try {
-        const list = await sdk.dishes.list({
-          pagination: { pageNumber: query.page },
-          sort: query.sort,
-          order: query.order,
-          filter: { name: query.name },
-        })
-        return c.json(list)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
-
-  .get(
-    "/search",
-    requireAccessRule("READ"),
-    describeRoute({
-      responses: {
-        200: json({
-          description: "Dish semantic search results",
-          schema: z.array(
-            z.object({
-              dish: DishSchema,
-              score: z.number(),
-            }),
-          ),
+      validator(
+        "query",
+        z.object({
+          page: PageSchema,
+          sort: z.enum(["name", "createdAt"]).default("createdAt"),
+          order: SortOrderSchema,
+          name: z.string().optional(),
         }),
-        400: validationError,
+      ),
+      async (c) => {
+        const query = c.req.valid("query")
+        try {
+          const list = await sdk.dishes.list({
+            pagination: { pageNumber: query.page },
+            sort: query.sort,
+            order: query.order,
+            filter: { name: query.name },
+          })
+          return c.json(list)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator(
-      "query",
-      z.object({
-        q: z.string().min(1),
-        limit: z.coerce.number().int().min(1).max(50).default(10),
-        minScore: z.coerce.number().min(0).max(1).optional(),
+    )
+
+    .get(
+      "/search",
+      requireAccessRule("READ"),
+      describeRoute({
+        responses: {
+          200: json({
+            description: "Dish semantic search results",
+            schema: z.array(
+              z.object({
+                dish: DishSchema,
+                score: z.number(),
+              }),
+            ),
+          }),
+          400: validationError,
+        },
       }),
-    ),
-    async (c) => {
-      const query = c.req.valid("query")
-      try {
-        const results = await sdk.dishes.search({
-          query: query.q,
-          limit: query.limit,
-          minScore: query.minScore,
-        })
-        return c.json(results)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
-
-  .post(
-    "/",
-    requireAccessRule("CREATE"),
-    describeRoute({
-      responses: {
-        201: json({ description: "Dish", schema: DishSchema }),
-        400: validationError,
+      validator(
+        "query",
+        z.object({
+          q: z.string().min(1),
+          limit: z.coerce.number().int().min(1).max(50).default(10),
+          minScore: z.coerce.number().min(0).max(1).optional(),
+        }),
+      ),
+      async (c) => {
+        const query = c.req.valid("query")
+        try {
+          const results = await sdk.dishes.search({
+            query: query.q,
+            limit: query.limit,
+            minScore: query.minScore,
+          })
+          return c.json(results)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("json", DishWriteSchema),
-    async (c) => {
-      const body = c.req.valid("json")
-      try {
-        const item = await sdk.dishes.create({ data: body })
-        return c.json(item, 201)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    )
 
-  .get(
-    "/:id",
-    requireAccessRule("READ"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Dish", schema: DishSchema }),
-        400: validationError,
-        404: sdkError,
+    .post(
+      "/",
+      requireAccessRule("CREATE"),
+      describeRoute({
+        responses: {
+          201: json({ description: "Dish", schema: DishSchema }),
+          400: validationError,
+        },
+      }),
+      validator("json", DishWriteSchema),
+      async (c) => {
+        const body = c.req.valid("json")
+        try {
+          const item = await sdk.dishes.create({ data: body })
+          return c.json(item, 201)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    async (c) => {
-      const params = c.req.valid("param")
-      try {
-        const item = await sdk.dishes.get({ id: params.id })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    )
 
-  .put(
-    "/:id",
-    requireAccessRule("UPDATE"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Dish", schema: DishSchema }),
-        400: validationError,
-        404: sdkError,
+    .get(
+      "/:id",
+      requireAccessRule("READ"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Dish", schema: DishSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      async (c) => {
+        const params = c.req.valid("param")
+        try {
+          const item = await sdk.dishes.get({ id: params.id })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    validator("json", DishWriteSchema),
-    async (c) => {
-      const params = c.req.valid("param")
-      const body = c.req.valid("json")
-      try {
-        const item = await sdk.dishes.update({ id: params.id, data: body })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    )
 
-  .delete(
-    "/:id",
-    requireAccessRule("DELETE"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Deleted dish", schema: DishSchema }),
-        400: validationError,
-        404: sdkError,
+    .put(
+      "/:id",
+      requireAccessRule("UPDATE"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Dish", schema: DishSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      validator("json", DishWriteSchema),
+      async (c) => {
+        const params = c.req.valid("param")
+        const body = c.req.valid("json")
+        try {
+          const item = await sdk.dishes.update({ id: params.id, data: body })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    async (c) => {
-      const params = c.req.valid("param")
+    )
 
-      try {
-        const item = await sdk.dishes.delete({ id: params.id })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    .delete(
+      "/:id",
+      requireAccessRule("DELETE"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Deleted dish", schema: DishSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      async (c) => {
+        const params = c.req.valid("param")
+
+        try {
+          const item = await sdk.dishes.delete({ id: params.id })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
+      },
+    )

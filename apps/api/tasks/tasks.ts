@@ -2,8 +2,8 @@ import { env } from "@relish/env"
 import { isSemanticMatch } from "@relish/recipe-processing"
 import { Prisma } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
-import { Job } from "bullmq"
 import { enqueueSubJob, queueEvents } from "~/tasks/queue.ts"
+import { RelishWorkerJob } from "~/tasks/worker.ts"
 
 /** Fetch all the dishes in the database. Then, for each dish, call `processDish` to find new dish sources. */
 export async function processAllDishes(
@@ -15,7 +15,7 @@ export async function processAllDishes(
   const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
 
-  const childJobs: Job[] = []
+  const childJobs: RelishWorkerJob[] = []
 
   for (const dish of dishes.items) {
     if (taskId) {
@@ -32,6 +32,7 @@ export async function processAllDishes(
 
   if (childJobs.length > 0) {
     logger.i(`Waiting for ${childJobs.length} child jobs to complete`)
+    // TODO: handle failed jobs
     await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
     logger.i(`All ${childJobs.length} child jobs completed`)
   }
@@ -40,7 +41,7 @@ export async function processAllDishes(
 /** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
 export async function processDish(
   this: Requires<"sdk" | "logger" | "adapters">,
-  { dishId, taskId = undefined }: { dishId: string; taskId?: string },
+  { dishId, taskId }: { dishId: string; taskId?: string },
 ) {
   const { sdk, logger, adapters } = resolve(this)
 
@@ -49,7 +50,8 @@ export async function processDish(
 
   logger.i(`[${dish.id}] Processing "${dish.name}"`)
 
-  const childJobs = []
+  const childJobs: RelishWorkerJob[] = []
+
   for (const [adapterName, adapter] of Object.entries(adapters)) {
     const sources = await adapter.findDishSources({ dish })
     logger.i(`[${dish.id}] Fetched ${sources.length} sources using the "${adapterName}" adapter`)
@@ -75,6 +77,7 @@ export async function processDish(
 
   if (childJobs.length > 0) {
     logger.i(`[${dish.id}] Waiting for ${childJobs.length} child jobs to complete`)
+    // TODO: handle failed jobs
     await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
     logger.i(`[${dish.id}] All ${childJobs.length} child jobs completed`)
   }

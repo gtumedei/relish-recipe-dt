@@ -138,6 +138,7 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
     }, */
 
     findDishSources: async ({ dish }) => {
+      // TODO: validate the dish search parameters
       const defaultParams = {
         key: env.YOUTUBE_API_KEY,
         q: "food",

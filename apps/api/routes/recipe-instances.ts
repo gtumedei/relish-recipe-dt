@@ -94,137 +94,138 @@ const RecipeInstanceListQuerySchema = z
     }
   })
 
-export const recipeInstanceRoutes = new Hono()
-  .use(describeRoute({ tags: ["Recipe instances"] }))
-  .use(requireCollectionAccess("RecipeInstance"))
+export const recipeInstanceRoutes = () =>
+  new Hono()
+    .use(describeRoute({ tags: ["Recipe instances"] }))
+    .use(requireCollectionAccess("RecipeInstance"))
 
-  .get(
-    "/",
-    requireAccessRule("READ"),
-    describeRoute({
-      responses: {
-        200: json({
-          description: "Recipe instance list",
-          schema: ResourceListSchema(RecipeInstanceSchema),
-        }),
-        400: validationError,
+    .get(
+      "/",
+      requireAccessRule("READ"),
+      describeRoute({
+        responses: {
+          200: json({
+            description: "Recipe instance list",
+            schema: ResourceListSchema(RecipeInstanceSchema),
+          }),
+          400: validationError,
+        },
+      }),
+      validator("query", RecipeInstanceListQuerySchema),
+      async (c) => {
+        const query = c.req.valid("query")
+
+        try {
+          const list = await sdk.recipeInstances.list({
+            pagination: { pageNumber: query.page },
+            sort: query.sort,
+            order: query.order,
+            filter: {
+              dishId: query.dishId,
+              ingredient: query.ingredient,
+              tool: query.tool,
+              totalPrepSecondsMin: query.totalPrepSecondsMin,
+              totalPrepSecondsMax: query.totalPrepSecondsMax,
+              location: query.location,
+              language: query.language,
+            },
+          })
+          return c.json(list)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("query", RecipeInstanceListQuerySchema),
-    async (c) => {
-      const query = c.req.valid("query")
+    )
 
-      try {
-        const list = await sdk.recipeInstances.list({
-          pagination: { pageNumber: query.page },
-          sort: query.sort,
-          order: query.order,
-          filter: {
-            dishId: query.dishId,
-            ingredient: query.ingredient,
-            tool: query.tool,
-            totalPrepSecondsMin: query.totalPrepSecondsMin,
-            totalPrepSecondsMax: query.totalPrepSecondsMax,
-            location: query.location,
-            language: query.language,
-          },
-        })
-        return c.json(list)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    .post(
+      "/",
+      requireAccessRule("CREATE"),
+      describeRoute({
+        responses: {
+          201: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
+          400: validationError,
+        },
+      }),
+      validator("json", RecipeInstanceWriteSchema),
+      async (c) => {
+        const body = c.req.valid("json")
 
-  .post(
-    "/",
-    requireAccessRule("CREATE"),
-    describeRoute({
-      responses: {
-        201: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
-        400: validationError,
+        try {
+          const item = await sdk.recipeInstances.create({ data: body })
+          return c.json(item, 201)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("json", RecipeInstanceWriteSchema),
-    async (c) => {
-      const body = c.req.valid("json")
+    )
 
-      try {
-        const item = await sdk.recipeInstances.create({ data: body })
-        return c.json(item, 201)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    .get(
+      "/:id",
+      requireAccessRule("READ"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      async (c) => {
+        const params = c.req.valid("param")
 
-  .get(
-    "/:id",
-    requireAccessRule("READ"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
-        400: validationError,
-        404: sdkError,
+        try {
+          const item = await sdk.recipeInstances.get({ id: params.id })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    async (c) => {
-      const params = c.req.valid("param")
+    )
 
-      try {
-        const item = await sdk.recipeInstances.get({ id: params.id })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    .put(
+      "/:id",
+      requireAccessRule("UPDATE"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      validator("json", RecipeInstanceWriteSchema),
+      async (c) => {
+        const params = c.req.valid("param")
+        const body = c.req.valid("json")
 
-  .put(
-    "/:id",
-    requireAccessRule("UPDATE"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Recipe instance", schema: RecipeInstanceSchema }),
-        400: validationError,
-        404: sdkError,
+        try {
+          const item = await sdk.recipeInstances.update({ id: params.id, data: body })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    validator("json", RecipeInstanceWriteSchema),
-    async (c) => {
-      const params = c.req.valid("param")
-      const body = c.req.valid("json")
+    )
 
-      try {
-        const item = await sdk.recipeInstances.update({ id: params.id, data: body })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    .delete(
+      "/:id",
+      requireAccessRule("DELETE"),
+      describeRoute({
+        responses: {
+          200: json({ description: "Deleted recipe instance", schema: RecipeInstanceSchema }),
+          400: validationError,
+          404: sdkError,
+        },
+      }),
+      validator("param", IdParamSchema),
+      async (c) => {
+        const params = c.req.valid("param")
 
-  .delete(
-    "/:id",
-    requireAccessRule("DELETE"),
-    describeRoute({
-      responses: {
-        200: json({ description: "Deleted recipe instance", schema: RecipeInstanceSchema }),
-        400: validationError,
-        404: sdkError,
+        try {
+          const item = await sdk.recipeInstances.delete({ id: params.id })
+          return c.json(item)
+        } catch (error) {
+          return sdkErrorResponse(c, error)
+        }
       },
-    }),
-    validator("param", IdParamSchema),
-    async (c) => {
-      const params = c.req.valid("param")
-
-      try {
-        const item = await sdk.recipeInstances.delete({ id: params.id })
-        return c.json(item)
-      } catch (error) {
-        return sdkErrorResponse(c, error)
-      }
-    },
-  )
+    )

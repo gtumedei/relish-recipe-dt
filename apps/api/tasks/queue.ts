@@ -4,11 +4,12 @@ import { Queue, QueueEvents } from "bullmq"
 
 export const TASKS_QUEUE_NAME = "tasks"
 
-export type TaskData = { taskId?: string; parentTaskId?: string } & (
+type TaskTypeData =
   | { type: "processAllDishes" }
   | { type: "processDish"; dishId: string }
   | { type: "processDishFromSource"; dishId: string; adapter: string; sourceUrl: string }
-)
+
+export type TaskData = { taskId?: string; parentTaskId?: string } & TaskTypeData
 
 export const queue = new Queue<TaskData>(TASKS_QUEUE_NAME)
 export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME)
@@ -16,7 +17,7 @@ export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME)
 /** Enqueue a job and create the related Task DB record, if no existing task ID is provided. */
 export async function enqueueJob(
   this: Requires<"db">,
-  data: Omit<TaskData, "taskId" | "parentTaskId"> & { taskId?: string },
+  data: TaskTypeData & { taskId?: string },
 ): Promise<Task> {
   const { db } = resolve(this)
   const task = data.taskId
@@ -27,8 +28,9 @@ export async function enqueueJob(
   return task
 }
 
+/** Enqueue a sub-job without creating a related Task DB record, as the subjob will inherit the parent job's task. */
 export async function enqueueSubJob(
-  data: Omit<TaskData, "taskId" | "parentTaskId"> & { taskId?: string; parentTaskId: string },
+  data: TaskTypeData & { taskId?: string; parentTaskId: string },
 ) {
   return await queue.add(data.type, data as TaskData)
 }

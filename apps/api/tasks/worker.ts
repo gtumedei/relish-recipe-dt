@@ -7,6 +7,8 @@ import { createWorkerContainer } from "~/tasks/worker.container.ts"
 
 const { db } = container
 
+export type RelishWorkerJob = Job<TaskData>
+
 const worker = new Worker(
   TASKS_QUEUE_NAME,
   async (task: Job<TaskData>) => {
