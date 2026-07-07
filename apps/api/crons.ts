@@ -20,4 +20,6 @@ export const setupCronjobs = () => {
   Deno.cron("Temporary files cleanup", "0 0 * * *", async () => {
     await cleanupTmpDir()
   })
+
+  // TODO: add a cronjob to processAllDishes
 }

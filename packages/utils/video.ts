@@ -21,7 +21,7 @@ export const getVideoDuration = async (videoPath: string) => {
     "json",
     "-v",
     "error",
-    videoPath
+    videoPath,
   )
   try {
     return FfprobeDurationSchema.parse(JSON.parse(stdout)).format.duration
@@ -42,7 +42,7 @@ export const extractAudioFromVideo = async (args: {
     "0",
     "-map",
     "a",
-    args.outputAudioPath
+    args.outputAudioPath,
   )
 }
 
@@ -65,7 +65,7 @@ export const extractFramesFromVideo = async (args: {
     args.videoPath,
     "-vf",
     `fps=${args.fps}`,
-    `${args.outDir}/frame-%04d.jpeg`
+    `${args.outDir}/frame-%04d.jpeg`,
   )
   // Resize images to 1080p if larger than that
   const frames = (await readFrames(args.outDir)).map((f) => join(args.outDir, f.name))
@@ -202,24 +202,23 @@ const OutputSchema = z.array(
     startSecond: z.number(),
     endSecond: z.number(),
     text: z.string(),
-  })
+  }),
 )
 
+// TODO: make this function work when frames are interleaved by more than one second
 export const describeVideoFrames = async (
   args:
     | { frames: { label: string; image: string | Uint8Array | ArrayBuffer | URL }[] }
-    | { framesDir: string }
+    | { framesDir: string },
 ) => {
   const frames =
     "frames" in args
       ? args.frames
       : await Promise.all(
-          (
-            await readFrames(args.framesDir)
-          ).map(async (f) => ({
+          (await readFrames(args.framesDir)).map(async (f) => ({
             label: f.name,
             image: await Deno.readFile(join(args.framesDir, f.name)),
-          }))
+          })),
         )
   const { text } = await generateText({
     model: gpt4_1Mini,

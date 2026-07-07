@@ -2,7 +2,7 @@ import { Dish, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
-import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
+import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
 export type DishListParams = {
   pagination: { pageNumber: number; pageSize?: number } | false
@@ -68,7 +68,7 @@ export function createDishesClient(this: Requires<"db">) {
       const queryEmbedding = await toEmbedding(params.query.trim())
       const limit = params.limit ?? DEFAULT_PAGE_SIZE
 
-      const res = await db.dish.aggregateRaw({
+      const res = (await db.dish.aggregateRaw({
         pipeline: [
           {
             $vectorSearch: {
@@ -81,43 +81,36 @@ export function createDishesClient(this: Requires<"db">) {
           },
           {
             $project: {
-              name: 1,
-              description: 1,
-              media: 1,
-              searchMetadata: 1,
-              createdAt: 1,
-              updatedAt: 1,
               score: { $meta: "vectorSearchScore" },
             },
           },
         ],
-      })
+      })) as unknown as { _id: { $oid: string }; score: number }[]
 
       if (!Array.isArray(res)) return []
 
-      let results = res.map((item: any) => ({
-        dish: {
-          id: item._id?.$oid ?? item._id,
-          name: item.name,
-          description: item.description,
-          media: item.media ?? [],
-          searchMetadata: item.searchMetadata ?? {},
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        } as Dish,
-        score: item.score,
-      }))
+      const resItems = await db.dish.findMany({
+        where: { id: { in: res.map((record) => record._id.$oid) } },
+      })
 
-      if (params.minScore != null) {
-        results = results.filter((r) => r.score >= params.minScore!)
-      }
+      const results = res
+        .map((record) => {
+          const item = resItems.find((it) => it.id == record._id.$oid)
+          if (!item) return null as unknown as DishSearchResult // It's fine since we filter it out right after anyway
+          return { dish: item, score: record.score }
+        })
+        .filter((it) => !!it && it.score >= (params.minScore ?? 0))
 
       return results
     },
 
-    create: async (params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> }) => {
+    create: async (
+      params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> },
+      { waitAfterEmbeddingGeneration = false }: { waitAfterEmbeddingGeneration?: boolean } = {},
+    ) => {
       const nameEmbedding = await toEmbedding(params.data.name)
       const item = await db.dish.create({ data: { ...params.data, nameEmbedding } })
+      if (waitAfterEmbeddingGeneration) await new Promise((r) => setTimeout(r, 1000))
       return item
     },
 

@@ -140,7 +140,8 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       )
       if (!videoPath.ok)
         logger.w(
-          `[${videoId}] Failed to download video, will attempt captions-only processing: ${videoPath.error.message}`,
+          `[${videoId}] Failed to download video, will attempt captions-only processing:`,
+          videoPath.error,
         )
 
       // Download captions
@@ -157,7 +158,7 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       if (videoPath.ok) {
         const duration = await tryCatch(getVideoDuration(videoPath.value))
         if (!duration.ok)
-          logger.w(`[${videoId}] Failed to get video duration: ${duration.error.message}`)
+          logger.w(`[${videoId}] Failed to get video duration:`, duration.error.message)
         else logger.i(`[${videoId}] Video duration: ${Math.floor(duration.value ?? 0)}s`)
 
         logger.i(`[${videoId}] Extracting frames...`)
@@ -167,13 +168,14 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
         )
 
         if (!framesRes.ok) {
-          logger.w(`[${videoId}] Failed to extract video frames: ${framesRes.error.message}`)
+          logger.w(`[${videoId}] Failed to extract video frames:`, framesRes.error.message)
         } else {
           logger.i(`[${videoId}] Describing frames...`)
           const framesDescription = await tryCatch(describeVideoFrames({ framesDir }))
           if (!framesDescription.ok) {
             logger.w(
-              `[${videoId}] Failed to describe video frames: ${framesDescription.error.message}`,
+              `[${videoId}] Failed to describe video frames:`,
+              framesDescription.error.message,
             )
           } else {
             framesDescriptionContent = JSON.stringify(framesDescription, null, 2)
@@ -193,12 +195,12 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
           extractAudioFromVideo({ inputVideoPath: videoPath.value, outputAudioPath: audioPath }),
         )
         if (!audioRes.ok) {
-          logger.w(`[${videoId}] Failed to extract audio: ${audioRes.error.message}`)
+          logger.w(`[${videoId}] Failed to extract audio:`, audioRes.error.message)
         } else {
           logger.i(`[${videoId}] Transcribing audio track...`)
           const transcriptionRes = await tryCatch(() => transcribeAudio(audioPath))
           if (!transcriptionRes.ok) {
-            logger.w(`[${videoId}] Failed to transcribe audio: ${transcriptionRes.error.message}`)
+            logger.w(`[${videoId}] Failed to transcribe audio:`, transcriptionRes.error.message)
           } else {
             transcriptionContent = JSON.stringify(transcriptionRes.value.segments, null, 2)
             await Deno.writeTextFile(
@@ -213,8 +215,7 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       if (captionsPath) {
         const captionsRes = await tryCatch(Deno.readTextFile(captionsPath))
         if (captionsRes.ok) captionsContent = captionsRes.value
-        else
-          logger.w(`[${videoId}] Failed to read captions from file: ${captionsRes.error.message}`)
+        else logger.w(`[${videoId}] Failed to read captions from file:`, captionsRes.error.message)
       } else {
         logger.w(`[${videoId}] Captions not available`)
       }
@@ -247,10 +248,10 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       )
 
       if (!description.ok) {
-        logger.w(`[${videoId}] Failed to generate video description: ${description.error.message}`)
+        logger.e(`[${videoId}] Failed to generate video description:`, description.error.message)
         return []
       } else if (!description.value) {
-        logger.w(`[${videoId}] Video description was empty. Skipping recipe extraction.`)
+        logger.e(`[${videoId}] Video description was empty. Skipping recipe extraction.`)
         return []
       }
 
@@ -262,7 +263,7 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       logger.i(`[${videoId}] Extracting formatted recipe...`)
       const recipe = await tryCatch(extractRecipe(description.value))
       if (!recipe.ok) {
-        logger.w(`[${videoId}] Failed to extract recipe: ${recipe.error.message}`)
+        logger.e(`[${videoId}] Failed to extract recipe:`, recipe.error.message)
         return []
       }
 

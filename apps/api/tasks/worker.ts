@@ -47,6 +47,7 @@ const worker = new Worker(
       }
     })
 
+    // TODO: fetch a summary of the errors and warning and return them. Fail the task if there are any errors
     logger.i("Task completed")
     return { ok: true }
   },
@@ -74,7 +75,7 @@ worker.on("completed", async (task: Job) => {
 })
 
 worker.on("failed", async (task: Job | undefined, err: Error) => {
-  console.error(`[task:${task?.id}] failed - `, err.message)
+  console.error(`[task:${task?.id}] failed:`, err)
   if (task?.data.taskId) {
     await db.task.update({
       data: { status: "FAILED", completedAt: new Date() },

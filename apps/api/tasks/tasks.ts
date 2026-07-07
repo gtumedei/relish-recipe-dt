@@ -2,6 +2,7 @@ import { env } from "@relish/env"
 import { isSemanticMatch } from "@relish/recipe-processing"
 import { Prisma } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
+import { tryCatch } from "@relish/utils/try"
 import { enqueueSubJob, queueEvents } from "~/tasks/queue.ts"
 import { RelishWorkerJob } from "~/tasks/worker.ts"
 
@@ -402,15 +403,15 @@ async function resolveIngredient(
 ): Promise<string | null> {
   const { sdk, logger } = resolve(this)
 
-  let results
-  try {
-    results = await sdk.ingredients.search({ query: name, limit: 3 })
-  } catch (error) {
-    logger.e(`Failed to search for ingredient "${name}"`, error)
+  const results = await tryCatch(sdk.ingredients.search({ query: name, limit: 3 }))
+  if (!results.ok) {
+    logger.e(`Failed to search for ingredient "${name}"`, results.error)
     return null
   }
 
-  for (const result of results) {
+  console.log(results)
+
+  for (const result of results.value) {
     const candidates = [result.ingredient.name, ...result.ingredient.nameAliases]
 
     let match: string | boolean
@@ -441,7 +442,10 @@ async function resolveIngredient(
   }
 
   // No match found: create a new ingredient
-  const created = await sdk.ingredients.create({ data: { name } })
+  const created = await sdk.ingredients.create(
+    { data: { name } },
+    { waitAfterEmbeddingGeneration: true },
+  )
   logger.i(`Created new ingredient "${name}" (${created.id})`)
   return created.id
 }
@@ -493,7 +497,7 @@ async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Prom
   }
 
   // No match found: create a new tool
-  const created = await sdk.tools.create({ data: { name } })
+  const created = await sdk.tools.create({ data: { name } }, { waitAfterEmbeddingGeneration: true })
   logger.i(`Created new tool "${name}" (${created.id})`)
   return created.id
 }

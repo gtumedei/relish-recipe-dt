@@ -2,7 +2,7 @@ import { Ingredient, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
-import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
+import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
 export type IngredientListParams = {
   pagination: { pageNumber: number; pageSize?: number } | false
@@ -64,7 +64,7 @@ export function createIngredientsClient(this: Requires<"db">) {
       const queryEmbedding = await toEmbedding(params.query.trim())
       const limit = params.limit ?? DEFAULT_PAGE_SIZE
 
-      const res = await db.ingredient.aggregateRaw({
+      const res = (await db.ingredient.aggregateRaw({
         pipeline: [
           {
             $vectorSearch: {
@@ -77,39 +77,36 @@ export function createIngredientsClient(this: Requires<"db">) {
           },
           {
             $project: {
-              name: 1,
-              media: 1,
-              createdAt: 1,
-              updatedAt: 1,
               score: { $meta: "vectorSearchScore" },
             },
           },
         ],
-      })
+      })) as unknown as { _id: { $oid: string }; score: number }[]
 
       if (!Array.isArray(res)) return []
 
-      let results = res.map((item: any) => ({
-        ingredient: {
-          id: item._id?.$oid ?? item._id,
-          name: item.name,
-          media: item.media ?? [],
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        } as Ingredient,
-        score: item.score,
-      }))
+      const resItems = await db.ingredient.findMany({
+        where: { id: { in: res.map((record) => record._id.$oid) } },
+      })
 
-      if (params.minScore != null) {
-        results = results.filter((r) => r.score >= params.minScore!)
-      }
+      const results = res
+        .map((record) => {
+          const item = resItems.find((it) => it.id == record._id.$oid)
+          if (!item) return null as unknown as IngredientSearchResult // It's fine since we filter it out right after anyway
+          return { ingredient: item, score: record.score }
+        })
+        .filter((it) => !!it && it.score >= (params.minScore ?? 0))
 
       return results
     },
 
-    create: async (params: { data: Omit<Prisma.IngredientCreateInput, "nameEmbedding"> }) => {
+    create: async (
+      params: { data: Omit<Prisma.IngredientCreateInput, "nameEmbedding"> },
+      { waitAfterEmbeddingGeneration = false }: { waitAfterEmbeddingGeneration?: boolean } = {},
+    ) => {
       const nameEmbedding = await toEmbedding(params.data.name)
       const item = await db.ingredient.create({ data: { ...params.data, nameEmbedding } })
+      if (waitAfterEmbeddingGeneration) await new Promise((r) => setTimeout(r, 1000))
       return item
     },
 
