@@ -5,15 +5,51 @@ import { Requires, resolve } from "@relish/utils/di"
 import { enqueueSubJob, queueEvents } from "~/tasks/queue.ts"
 import { RelishWorkerJob } from "~/tasks/worker.ts"
 
+export type ProcessingResult = {
+  success: boolean
+  dishesProcessed: number
+  recipesCreated: number
+  errors: ProcessingError[]
+  dishResults: DishResult[]
+}
+
+type DishResult = {
+  dishId: string
+  dishName: string
+  success: boolean
+  sourcesProcessed: number
+  recipesCreated: number
+  errors: ProcessingError[]
+}
+
+type SourceResult = {
+  recipesCreated: number
+  errors: ProcessingError[]
+}
+
+type ProcessingError = {
+  context: string
+  message: string
+  cause?: unknown
+}
+
 /** Fetch all the dishes in the database. Then, for each dish, call `processDish` to find new dish sources. */
 export async function processAllDishes(
   this: Requires<"sdk" | "logger" | "adapters">,
   { taskId }: { taskId?: string } = {},
-) {
+): Promise<ProcessingResult> {
   const { sdk, logger } = resolve(this)
 
   const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
+
+  const result: ProcessingResult = {
+    success: false,
+    dishesProcessed: 0,
+    recipesCreated: 0,
+    errors: [],
+    dishResults: [],
+  }
 
   const childJobs: RelishWorkerJob[] = []
 
@@ -26,23 +62,52 @@ export async function processAllDishes(
       })
       childJobs.push(childJob)
     } else {
-      await processDish({ dishId: dish.id, taskId })
+      try {
+        const dishResult = await processDish({ dishId: dish.id, taskId })
+        result.dishesProcessed++
+        result.recipesCreated += dishResult.recipesCreated
+        result.dishResults.push(dishResult)
+        result.errors.push(...dishResult.errors)
+      } catch (error) {
+        result.errors.push({
+          context: `dish:${dish.id}`,
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+        })
+        logger.e(`[${dish.id}] Failed to process dish`, error)
+      }
     }
   }
 
   if (childJobs.length > 0) {
     logger.i(`Waiting for ${childJobs.length} child jobs to complete`)
-    // TODO: handle failed jobs
-    await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
+    const outcomes = await Promise.allSettled(
+      childJobs.map((j) => j.waitUntilFinished(queueEvents)),
+    )
+    const failed = outcomes.filter((o) => o.status === "rejected")
+    if (failed.length > 0) {
+      for (const f of failed) {
+        const reason = (f as PromiseRejectedResult).reason
+        result.errors.push({
+          context: "childJob",
+          message: reason instanceof Error ? reason.message : String(reason),
+          cause: reason,
+        })
+      }
+      logger.e(`${failed.length}/${childJobs.length} child jobs failed`)
+    }
     logger.i(`All ${childJobs.length} child jobs completed`)
   }
+
+  result.success = result.dishesProcessed > 0
+  return result
 }
 
 /** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
 export async function processDish(
   this: Requires<"sdk" | "logger" | "adapters">,
   { dishId, taskId }: { dishId: string; taskId?: string },
-) {
+): Promise<DishResult> {
   const { sdk, logger, adapters } = resolve(this)
 
   const dish = await sdk.dishes.get({ id: dishId })
@@ -50,10 +115,31 @@ export async function processDish(
 
   logger.i(`[${dish.id}] Processing "${dish.name}"`)
 
+  const dishResult: DishResult = {
+    dishId: dish.id,
+    dishName: dish.name,
+    success: false,
+    sourcesProcessed: 0,
+    recipesCreated: 0,
+    errors: [],
+  }
+
   const childJobs: RelishWorkerJob[] = []
 
   for (const [adapterName, adapter] of Object.entries(adapters)) {
-    const sources = await adapter.findDishSources({ dish })
+    let sources
+    try {
+      sources = await adapter.findDishSources({ dish })
+    } catch (error) {
+      dishResult.errors.push({
+        context: `dish:${dish.id}/adapter:${adapterName}/findSources`,
+        message: error instanceof Error ? error.message : String(error),
+        cause: error,
+      })
+      logger.e(`[${dish.id}] Failed to find sources using the "${adapterName}" adapter`, error)
+      continue
+    }
+
     logger.i(`[${dish.id}] Fetched ${sources.length} sources using the "${adapterName}" adapter`)
     for (const source of sources) {
       if (taskId) {
@@ -66,28 +152,56 @@ export async function processDish(
         })
         childJobs.push(childJob)
       } else {
-        await processDishFromSource({
-          dishId: dish.id,
-          adapter: adapterName,
-          sourceUrl: source.url,
-        })
+        try {
+          const sourceResult = await processDishFromSource({
+            dishId: dish.id,
+            adapter: adapterName,
+            sourceUrl: source.url,
+          })
+          dishResult.sourcesProcessed++
+          dishResult.recipesCreated += sourceResult.recipesCreated
+          dishResult.errors.push(...sourceResult.errors)
+        } catch (error) {
+          dishResult.errors.push({
+            context: `dish:${dish.id}/source:${source.url}`,
+            message: error instanceof Error ? error.message : String(error),
+            cause: error,
+          })
+          logger.e(`[${dish.id}] Failed to process source ${source.url}`, error)
+        }
       }
     }
   }
 
   if (childJobs.length > 0) {
     logger.i(`[${dish.id}] Waiting for ${childJobs.length} child jobs to complete`)
-    // TODO: handle failed jobs
-    await Promise.all(childJobs.map((j) => j.waitUntilFinished(queueEvents)))
+    const outcomes = await Promise.allSettled(
+      childJobs.map((j) => j.waitUntilFinished(queueEvents)),
+    )
+    const failed = outcomes.filter((o) => o.status === "rejected")
+    if (failed.length > 0) {
+      for (const f of failed) {
+        const reason = (f as PromiseRejectedResult).reason
+        dishResult.errors.push({
+          context: `dish:${dish.id}/childJob`,
+          message: reason instanceof Error ? reason.message : String(reason),
+          cause: reason,
+        })
+      }
+      logger.e(`[${dish.id}] ${failed.length}/${childJobs.length} child jobs failed`)
+    }
     logger.i(`[${dish.id}] All ${childJobs.length} child jobs completed`)
   }
+
+  dishResult.success = dishResult.sourcesProcessed > 0
+  return dishResult
 }
 
 /** Process a dish source to extract recipes and store them in the database. */
 export async function processDishFromSource(
   this: Requires<"db" | "sdk" | "logger" | "adapters">,
   params: { dishId: string; adapter: string; sourceUrl: string },
-) {
+): Promise<SourceResult> {
   const { db, sdk, logger, adapters } = resolve(this)
 
   const dish = await sdk.dishes.get({ id: params.dishId })
@@ -98,16 +212,35 @@ export async function processDishFromSource(
 
   logger.i(`[${dish.id}][${params.adapter}] Processing source ${params.sourceUrl}`)
 
-  const extractedRecipes = await adapter.processDishFromSource({
-    dish,
-    source: { url: params.sourceUrl },
-  })
+  // Extract recipes from the source (external API — catch and return error)
+  let extractedRecipes
+  try {
+    extractedRecipes = await adapter.processDishFromSource({
+      dish,
+      source: { url: params.sourceUrl },
+    })
+  } catch (error) {
+    logger.e(`[${dish.id}] Failed to extract recipes from ${params.sourceUrl}`, error)
+    return {
+      recipesCreated: 0,
+      errors: [
+        {
+          context: `dish:${dish.id}/source:${params.sourceUrl}/extract`,
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+        },
+      ],
+    }
+  }
 
   // Ensure the source URL is tracked in the database
   let processedUrl = await db.processedUrl.findUnique({ where: { url: params.sourceUrl } })
   if (!processedUrl) {
     processedUrl = await db.processedUrl.create({ data: { url: params.sourceUrl } })
   }
+
+  const sourceErrors: ProcessingError[] = []
+  let recipesCreated = 0
 
   for (const extractedRecipe of extractedRecipes) {
     logger.i(
@@ -121,7 +254,7 @@ export async function processDishFromSource(
       ),
     ]
     // Resolve each ingredient name to a database entity reference
-    const ingredientIdMap = new Map<string, string>()
+    const ingredientIdMap = new Map<string, string | null>()
     for (const name of allIngredientNames) {
       ingredientIdMap.set(name, await resolveIngredient(name))
     }
@@ -135,31 +268,58 @@ export async function processDishFromSource(
       ),
     ]
     // Resolve each tool name to a database entity reference
-    const toolIdMap = new Map<string, string>()
+    const toolIdMap = new Map<string, string | null>()
     for (const name of allToolNames) {
       toolIdMap.set(name, await resolveTool(name))
     }
 
-    // Build steps with resolved database references
+    // Log unresolved ingredients/tools
+    for (const [name, id] of ingredientIdMap) {
+      if (id == null) {
+        logger.w(`[${dish.id}] Could not resolve ingredient "${name}", skipping`)
+        sourceErrors.push({
+          context: `dish:${dish.id}/recipe:${extractedRecipe.dish}/ingredient:${name}`,
+          message: `Could not resolve ingredient "${name}"`,
+        })
+      }
+    }
+    for (const [name, id] of toolIdMap) {
+      if (id == null) {
+        logger.w(`[${dish.id}] Could not resolve tool "${name}", skipping`)
+        sourceErrors.push({
+          context: `dish:${dish.id}/recipe:${extractedRecipe.dish}/tool:${name}`,
+          message: `Could not resolve tool "${name}"`,
+        })
+      }
+    }
+
+    // Build steps with resolved database references (skip unresolved ingredients/tools)
     const steps: Prisma.UserStepCreateInput[] = extractedRecipe.steps.map((step) => ({
       description: step.description,
       prepSeconds: step.prepSeconds ?? undefined,
-      ingredients: step.ingredients.map((i) => ({
-        ingredientOrDishId: ingredientIdMap.get(i.ingredientName)!,
-        quantity: i.quantity ?? undefined,
-        unit: i.unit ?? undefined,
-      })),
-      tools: step.tools.map((t) => ({
-        tool: toolIdMap.get(t.toolName)!,
-        alternatives: t.alternativeTools.map((name) => toolIdMap.get(name)!),
-      })),
+      ingredients: step.ingredients
+        .filter((i) => ingredientIdMap.get(i.ingredientName) != null)
+        .map((i) => ({
+          ingredientOrDishId: ingredientIdMap.get(i.ingredientName)!,
+          quantity: i.quantity ?? undefined,
+          unit: i.unit ?? undefined,
+        })),
+      tools: step.tools
+        .filter((t) => toolIdMap.get(t.toolName) != null)
+        .map((t) => ({
+          tool: toolIdMap.get(t.toolName)!,
+          alternatives: t.alternativeTools
+            .filter((name) => toolIdMap.get(name) != null)
+            .map((name) => toolIdMap.get(name)!),
+        })),
     }))
 
     // Aggregate ingredients across all steps (deduplicated by entity ID)
     const ingredientAggregate = new Map<string, { quantity: number | null; unit: string | null }>()
     for (const step of extractedRecipe.steps) {
       for (const i of step.ingredients) {
-        const id = ingredientIdMap.get(i.ingredientName)!
+        const id = ingredientIdMap.get(i.ingredientName)
+        if (id == null) continue
         const existing = ingredientAggregate.get(id)
         if (existing) {
           existing.quantity = (existing.quantity ?? 0) + (i.quantity ?? 0)
@@ -176,12 +336,16 @@ export async function processDishFromSource(
     const toolAggregate = new Map<string, Set<string>>()
     for (const step of extractedRecipe.steps) {
       for (const t of step.tools) {
-        const id = toolIdMap.get(t.toolName)!
+        const id = toolIdMap.get(t.toolName)
+        if (id == null) continue
         if (!toolAggregate.has(id)) {
           toolAggregate.set(id, new Set())
         }
         for (const alt of t.alternativeTools) {
-          toolAggregate.get(id)!.add(toolIdMap.get(alt)!)
+          const altId = toolIdMap.get(alt)
+          if (altId != null) {
+            toolAggregate.get(id)!.add(altId)
+          }
         }
       }
     }
@@ -221,21 +385,41 @@ export async function processDishFromSource(
     })
 
     logger.i(`[${dish.id}] Created recipe instance ${recipeInstance.id}`)
+    recipesCreated++
   }
+
+  return { recipesCreated, errors: sourceErrors }
 }
 
 /**
  * Resolve an ingredient name to a database entity reference.
  * Searches for existing ingredients, checks for semantic matches, and creates new entities when no match is found.
+ * Returns null if external services (embedding, LLM) are unavailable.
  */
-async function resolveIngredient(this: Requires<"sdk" | "logger">, name: string): Promise<string> {
+async function resolveIngredient(
+  this: Requires<"sdk" | "logger">,
+  name: string,
+): Promise<string | null> {
   const { sdk, logger } = resolve(this)
 
-  const results = await sdk.ingredients.search({ query: name, limit: 3 })
+  let results
+  try {
+    results = await sdk.ingredients.search({ query: name, limit: 3 })
+  } catch (error) {
+    logger.e(`Failed to search for ingredient "${name}"`, error)
+    return null
+  }
 
   for (const result of results) {
     const candidates = [result.ingredient.name, ...result.ingredient.nameAliases]
-    const match = await isSemanticMatch("ingredient", name, candidates)
+
+    let match: string | boolean
+    try {
+      match = await isSemanticMatch("ingredient", name, candidates)
+    } catch (error) {
+      logger.e(`Failed to check semantic match for ingredient "${name}"`, error)
+      continue
+    }
 
     if (typeof match === "string") {
       // Heuristic matched: the ingredient is already known under that name
@@ -265,15 +449,29 @@ async function resolveIngredient(this: Requires<"sdk" | "logger">, name: string)
 /**
  * Resolve a tool name to a database entity reference.
  * Searches for existing tools, checks for semantic matches, and creates new entities when no match is found.
+ * Returns null if external services (embedding, LLM) are unavailable.
  */
-async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Promise<string> {
+async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Promise<string | null> {
   const { sdk, logger } = resolve(this)
 
-  const results = await sdk.tools.search({ query: name, limit: 3 })
+  let results
+  try {
+    results = await sdk.tools.search({ query: name, limit: 3 })
+  } catch (error) {
+    logger.e(`Failed to search for tool "${name}"`, error)
+    return null
+  }
 
   for (const result of results) {
     const candidates = [result.tool.name, ...result.tool.nameAliases]
-    const match = await isSemanticMatch("tool", name, candidates)
+
+    let match: string | boolean
+    try {
+      match = await isSemanticMatch("tool", name, candidates)
+    } catch (error) {
+      logger.e(`Failed to check semantic match for tool "${name}"`, error)
+      continue
+    }
 
     if (typeof match === "string") {
       // Heuristic matched: the tool is already known under that name
@@ -313,9 +511,14 @@ async function resolveGeonameId(location: string | undefined): Promise<string | 
     maxRows: "1",
   })
 
-  const res = await fetch(`https://api.geonames.org/searchJSON?${params}`)
-  if (!res.ok) return null
+  try {
+    const res = await fetch(`https://api.geonames.org/searchJSON?${params}`)
+    if (!res.ok) return null
 
-  const data = (await res.json()) as { geonames?: Array<{ geonameId: string }> }
-  return data.geonames?.[0]?.geonameId ?? null
+    const data = (await res.json()) as { geonames?: Array<{ geonameId: string }> }
+    return data.geonames?.[0]?.geonameId ?? null
+  } catch (error) {
+    console.error(`Failed to look up GeoNames ID for "${location}"`, error)
+    return null
+  }
 }
