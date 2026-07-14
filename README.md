@@ -34,8 +34,8 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
     Shared reusable libraries.
     - `env`\
       Handles loading and validating environment variables.
-    - `ingestor`\
-      Logic to ingest data from external sources into the RELISH database.
+    - `sdk`\
+      Shared business logic for CRUD operations on the Relish database.
     - `modeling` (placeholder)\
       Simulate the evolution of recipes based on certain factors.
     - `recipe-processing`\
@@ -57,6 +57,8 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
 - **Database**
   - **MongoDB Community Server**: core database engine.
   - **MongoDB Community Search**: search service based on Apache Lucene.
+- **Job queue system**
+  - **Redis**: to persist the queue state
 - **OpenAI models**\
   Right now the system is using the following models:
   - **GPT-4o mini** for text generation
@@ -69,7 +71,7 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
 ### Requirements
 
 - To run the whole system using Docker, you only need [Docker](https://www.docker.com/) (obviously).
-- Alternatively, you can run the database using Docker and the rest of the system locally, which is handy for development. In this case, you're going to need:
+- Alternatively, you can run the database and Redis using Docker and the rest of the system locally, which is handy for development. In this case, you're going to need:
   - [Docker](https://www.docker.com/)
   - [Deno](https://deno.com/)
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp) in `PATH` to download videos from YouTube
@@ -100,7 +102,7 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
   # You can use this shorthand if Deno is installed
   deno task sys:up
   # Or the full command otherwise
-  docker compose up relish mongod mongot --build -d
+  docker compose up relish mongod mongot redis --build -d
   ```
 
 **Option b. Only the database on Docker** (best for local development)

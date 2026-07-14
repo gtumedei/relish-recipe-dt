@@ -4,6 +4,7 @@ import { container } from "~/api.container.ts"
 import { TaskData, TASKS_QUEUE_NAME } from "~/tasks/queue.ts"
 import { processAllDishes, processDish, processDishFromSource } from "~/tasks/tasks.ts"
 import { createWorkerContainer } from "~/tasks/worker.container.ts"
+import { env } from "@relish/env"
 
 const { db } = container
 
@@ -51,7 +52,7 @@ const worker = new Worker(
     logger.i("Task completed")
     return { ok: true }
   },
-  { connection: { host: "localhost", port: 6379 }, concurrency: 10 },
+  { connection: { url: env.REDIS_URL }, concurrency: 10 },
 )
 
 // Sync task status on the database (only for top-level jobs that have their own Task record)

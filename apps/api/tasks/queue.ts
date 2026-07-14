@@ -1,6 +1,7 @@
 import { Task } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
 import { Queue, QueueEvents } from "bullmq"
+import { env } from "@relish/env"
 
 export const TASKS_QUEUE_NAME = "tasks"
 
@@ -11,8 +12,12 @@ type TaskTypeData =
 
 export type TaskData = { taskId?: string; parentTaskId?: string } & TaskTypeData
 
-export const queue = new Queue<TaskData>(TASKS_QUEUE_NAME)
-export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME)
+export const queue = new Queue<TaskData>(TASKS_QUEUE_NAME, {
+  connection: { url: env.REDIS_URL },
+})
+export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME, {
+  connection: { url: env.REDIS_URL },
+})
 
 /** Enqueue a job and create the related Task DB record, if no existing task ID is provided. */
 export async function enqueueJob(

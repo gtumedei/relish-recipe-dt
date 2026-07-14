@@ -6,6 +6,7 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   ADMIN_PASSWORD: z.string().min(1),
   MONGOT_PASSWORD: z.string().min(1),
+  REDIS_URL: z.string().min(1),
   YOUTUBE_API_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   GEONAMES_USERNAME: z.string().min(1),

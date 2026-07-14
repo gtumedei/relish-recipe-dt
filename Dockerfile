@@ -13,7 +13,7 @@ WORKDIR /app
 COPY . .
 
 # Cache dependencies and generate Prisma code
-RUN deno install --allow-scripts
+RUN deno install
 RUN deno task db:generate
 
 # Start the web server

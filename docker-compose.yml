@@ -8,6 +8,7 @@ services:
     # The container's database URL must use the MongoDB container name
     environment:
       - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
+      - REDIS_URL=redis://relish-redis:6379
     ports:
       - "80:8000"
     volumes:
