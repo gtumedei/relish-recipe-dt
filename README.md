@@ -91,7 +91,7 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
   # You can use this shorthand if Deno is installed
   deno task setup
   # Or the full command otherwise
-  docker compose --profile setup run --rm setup-generator
+  docker compose --profile setup run --rm relish-setup-generator
   ```
 
 **Option a. Fully on Docker**
