@@ -10,7 +10,7 @@ services:
       - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
       - REDIS_URL=redis://relish-redis:6379
     ports:
-      - "80:8000"
+      - "8000:8000"
     volumes:
       - relish_tmp_data:/app/tmp
     networks:
@@ -20,7 +20,7 @@ services:
         condition: service_completed_successfully
 
   mongod:
-    image: mongodb/mongodb-community-server:latest
+    image: mongodb/mongodb-community-server:8.2.2-ubi8
     container_name: relish-mongod
     environment:
       MONGODB_INITDB_ROOT_USERNAME: admin
@@ -49,7 +49,7 @@ services:
       start_period: 30s
 
   mongot:
-    image: mongodb/mongodb-community-search:latest
+    image: mongodb/mongodb-community-search:0.55.0
     container_name: relish-mongot
     ports:
       - "27028:27028" # gRPC server port
