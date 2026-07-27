@@ -116,6 +116,24 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
   deno task db:push
   ```
 
+**Accessing protected routes**
+
+The system uses API keys to protect routes and resources. Keys can only be managed via CLI (no REST APIs). You can get an overview of the available commands by running `deno task cli:start`.
+
+- To create a new API key with full access to every endpoint, run the following command:
+
+  ```bash
+  deno task cli:start api-keys create --name "Full access" --access "
+    Dish:CREATE,READ,UPDATE,DELETE,TASKS
+    Recipe:CREATE,READ,UPDATE,DELETE,TASKS
+    RecipeInstance:CREATE,READ,UPDATE,DELETE,TASKS
+    Ingredient:CREATE,READ,UPDATE,DELETE,TASKS
+    Tool:CREATE,READ,UPDATE,DELETE,TASKS
+    Task:CREATE,READ,UPDATE,DELETE,TASKS"
+  ```
+
+- To create an API key with partial access, just remove a row from the above command (to revoke CRUD access to a certain collection), or an action to forbid a specific operation from a specific collection.
+
 ## Notes on development practices
 
 ### Classes

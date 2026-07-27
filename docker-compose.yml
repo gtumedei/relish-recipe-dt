@@ -27,18 +27,18 @@ services:
       MONGODB_INITDB_ROOT_PASSWORD: ${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}
       MONGOT_PASSWORD: ${MONGOT_PASSWORD:?Missing MONGOT_PASSWORD}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}
-    command: >-
-      mongod
-      --config /etc/mongod.conf
-      --replSetMember=mongod.relish-net:27017
+    user: root
+    entrypoint: /docker-entrypoint-wrapper.sh
+    command: mongod --config /etc/mongod.conf --replSetMember=mongod.relish-net:27017
     ports:
       - "27017:27017"
     volumes:
       - mongod_data:/data/db
       - mongod_configdb:/data/configdb
       - ./mongo-config/mongod.conf:/etc/mongod.conf:ro
-      - ./keyfile:/keyfile:ro
+      - ./keyfile:/keyfile-src:ro
       - ./mongo-config/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
+      - ./mongo-config/docker-entrypoint-wrapper.sh:/docker-entrypoint-wrapper.sh:ro
     networks:
       - relish-net
     healthcheck:
@@ -100,7 +100,7 @@ services:
           echo 'Generating keyfile...';
           apk add --no-cache openssl;
           openssl rand -base64 756 > keyfile;
-          chmod 400 keyfile;
+          chmod 644 keyfile;
           echo 'Keyfile generated successfully';
         else
           echo 'Keyfile already exists, skipping generation';
