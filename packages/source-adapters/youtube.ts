@@ -37,9 +37,6 @@ type YoutubeSearchParameters = {
   relevanceLanguage?: string // http://www.loc.gov/standards/iso639-2/php/code_list.php
 }
 
-/* type PartialYoutubeSearchParameters = Pick<YoutubeSearchParameters, "q"> &
-  Partial<YoutubeSearchParameters> */
-
 type YoutubeSearchResult = {
   kind: string
   etag: string
@@ -63,10 +60,65 @@ type YoutubeSearchItem = {
   }
 }
 
-const parseVideoUrlOrId = (videoURLOrID: string) => {
-  return videoURLOrID.startsWith("http")
-    ? { url: videoURLOrID, id: new URL(videoURLOrID).searchParams.get("v")! }
-    : { url: `https://youtube.com/watch?v=${videoURLOrID}`, id: videoURLOrID }
+/**
+ * Extract the YouTube video ID from various URL formats, or treat the input
+ * as a raw video ID if it doesn't look like a URL.
+ *
+ * Handles formats such as:
+ *  - https://www.youtube.com/watch?v=VIDEO_ID
+ *  - https://youtu.be/VIDEO_ID
+ *  - https://www.youtube.com/embed/VIDEO_ID
+ *  - https://www.youtube.com/v/VIDEO_ID
+ *  - https://www.youtube.com/shorts/VIDEO_ID
+ *  - https://www.youtube.com/live/VIDEO_ID
+ *  - https://m.youtube.com/watch?v=VIDEO_ID
+ *  - https://youtube.com/attribution_link?...&u=/watch?v=VIDEO_ID...
+ *  - Plain video ID string
+ */
+const parseVideoUrlOrId = (videoURLOrID: string): { url: string; id: string } => {
+  // If it's not a URL, treat it as a raw video ID
+  if (!videoURLOrID.startsWith("http")) {
+    return { url: `https://www.youtube.com/watch?v=${videoURLOrID}`, id: videoURLOrID }
+  }
+
+  const url = new URL(videoURLOrID)
+
+  // Standard watch URL: youtube.com/watch?v=VIDEO_ID
+  const vParam = url.searchParams.get("v")
+  if (vParam) {
+    return { url: `https://www.youtube.com/watch?v=${vParam}`, id: vParam }
+  }
+
+  // Short-form and path-based URLs:
+  // - youtu.be/VIDEO_ID
+  // - youtube.com/embed/VIDEO_ID
+  // - youtube.com/v/VIDEO_ID
+  // - youtube.com/shorts/VIDEO_ID
+  // - youtube.com/live/VIDEO_ID
+  const pathMatch = url.pathname.match(/^\/(?:embed|v|shorts|live)\/([a-zA-Z0-9_-]{11})/)
+  if (pathMatch) {
+    return { url: `https://www.youtube.com/watch?v=${pathMatch[1]}`, id: pathMatch[1] }
+  }
+
+  // youtu.be/VIDEO_ID (shorter path, no prefix)
+  if (url.hostname === "youtu.be") {
+    const id = url.pathname.slice(1).split("/")[0]
+    if (id) {
+      return { url: `https://www.youtube.com/watch?v=${id}`, id }
+    }
+  }
+
+  // attribution_link URLs (e.g. from share dialogs)
+  const uParam = url.searchParams.get("u")
+  if (uParam) {
+    const decodedU = new URL(decodeURIComponent(uParam), url.origin)
+    const nestedV = decodedU.searchParams.get("v")
+    if (nestedV) {
+      return { url: `https://www.youtube.com/watch?v=${nestedV}`, id: nestedV }
+    }
+  }
+
+  throw new Error(`Unable to extract a YouTube video ID from the given input: "${videoURLOrID}"`)
 }
 
 export type YoutubeSourceAdapter = ReturnType<typeof createYoutubeAdapter>
