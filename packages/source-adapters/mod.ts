@@ -1,9 +1,12 @@
 import { ExtractedRecipe } from "@relish/recipe-processing"
-import { Dish } from "@relish/storage"
+import { Dish } from "@relish/sdk"
 
 export type SourceAdapter<
   TSource extends { url: string } = { url: string; [key: string]: unknown },
-  TFindParams extends { dish: Dish } = { dish: Dish; [key: string]: unknown },
+  TFindParams extends { dish: Dish } = {
+    dish: Dish
+    [key: string]: unknown
+  },
   TProcessParams extends { dish: Dish; source: TSource } = {
     dish: Dish
     source: TSource

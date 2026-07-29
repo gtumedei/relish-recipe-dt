@@ -1,8 +1,9 @@
-import { Dish, Prisma } from "@relish/storage"
+import { Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
 import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
+import { Dish } from "@relish/sdk"
 
 export type DishListParams = {
   pagination: { pageNumber: number; pageSize?: number } | false
@@ -49,6 +50,7 @@ export function createDishesClient(this: Requires<"db">) {
         db.dish.findMany({
           where,
           orderBy: [primaryOrderBy, { id: "asc" }],
+          omit: { nameEmbedding: true },
           ...(params.pagination ? { skip: (page - 1) * pageSize!, take: pageSize } : {}),
         }),
       ])
@@ -91,6 +93,7 @@ export function createDishesClient(this: Requires<"db">) {
 
       const resItems = await db.dish.findMany({
         where: { id: { in: res.map((record) => record._id.$oid) } },
+        omit: { nameEmbedding: true },
       })
 
       const results = res
@@ -107,15 +110,21 @@ export function createDishesClient(this: Requires<"db">) {
     create: async (
       params: { data: Omit<Prisma.DishCreateInput, "nameEmbedding"> },
       { waitAfterEmbeddingGeneration = false }: { waitAfterEmbeddingGeneration?: boolean } = {},
-    ) => {
+    ): Promise<Dish> => {
       const nameEmbedding = await toEmbedding(params.data.name)
-      const item = await db.dish.create({ data: { ...params.data, nameEmbedding } })
+      const item = await db.dish.create({
+        data: { ...params.data, nameEmbedding },
+        omit: { nameEmbedding: true },
+      })
       if (waitAfterEmbeddingGeneration) await new Promise((r) => setTimeout(r, 1000))
       return item
     },
 
-    get: async (params: { id: string }) => {
-      const item = await db.dish.findUnique({ where: { id: params.id } })
+    get: async (params: { id: string }): Promise<Dish> => {
+      const item = await db.dish.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
       return item
     },
@@ -125,8 +134,11 @@ export function createDishesClient(this: Requires<"db">) {
       data: Omit<Prisma.DishUpdateInput, "nameEmbedding" | "name"> & {
         name?: string
       }
-    }) => {
-      const item = await db.dish.findUnique({ where: { id: params.id } })
+    }): Promise<Dish> => {
+      const item = await db.dish.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
 
       let data: Prisma.DishUpdateInput = params.data
@@ -135,14 +147,24 @@ export function createDishesClient(this: Requires<"db">) {
         data = { ...params.data, nameEmbedding }
       }
 
-      const updatedItem = await db.dish.update({ where: { id: params.id }, data })
+      const updatedItem = await db.dish.update({
+        where: { id: params.id },
+        data,
+        omit: { nameEmbedding: true },
+      })
       return updatedItem
     },
 
-    delete: async (params: { id: string }) => {
-      const item = await db.dish.findUnique({ where: { id: params.id } })
+    delete: async (params: { id: string }): Promise<Dish> => {
+      const item = await db.dish.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
-      const deletedItem = await db.dish.delete({ where: { id: params.id } })
+      const deletedItem = await db.dish.delete({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       return deletedItem
     },
   }

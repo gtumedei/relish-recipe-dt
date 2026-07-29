@@ -1,4 +1,5 @@
-import { Prisma, Tool } from "@relish/storage"
+import { Tool } from "@relish/sdk"
+import { Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
 import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
@@ -45,6 +46,7 @@ export function createToolsClient(this: Requires<"db">) {
         db.tool.findMany({
           where,
           orderBy: [{ createdAt: order }, { id: "asc" }],
+          omit: { nameEmbedding: true },
           ...(params.pagination ? { skip: (page - 1) * pageSize!, take: pageSize } : {}),
         }),
       ])
@@ -87,6 +89,7 @@ export function createToolsClient(this: Requires<"db">) {
 
       const resItems = await db.tool.findMany({
         where: { id: { in: res.map((record) => record._id.$oid) } },
+        omit: { nameEmbedding: true },
       })
 
       const results = res
@@ -103,15 +106,21 @@ export function createToolsClient(this: Requires<"db">) {
     create: async (
       params: { data: Omit<Prisma.ToolCreateInput, "nameEmbedding"> },
       { waitAfterEmbeddingGeneration = false }: { waitAfterEmbeddingGeneration?: boolean } = {},
-    ) => {
+    ): Promise<Tool> => {
       const nameEmbedding = await toEmbedding(params.data.name)
-      const item = await db.tool.create({ data: { ...params.data, nameEmbedding } })
+      const item = await db.tool.create({
+        data: { ...params.data, nameEmbedding },
+        omit: { nameEmbedding: true },
+      })
       if (waitAfterEmbeddingGeneration) await new Promise((r) => setTimeout(r, 1000))
       return item
     },
 
-    get: async (params: { id: string }) => {
-      const item = await db.tool.findUnique({ where: { id: params.id } })
+    get: async (params: { id: string }): Promise<Tool> => {
+      const item = await db.tool.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
       return item
     },
@@ -121,8 +130,11 @@ export function createToolsClient(this: Requires<"db">) {
       data: Omit<Prisma.ToolUpdateInput, "nameEmbedding" | "name"> & {
         name?: string
       }
-    }) => {
-      const item = await db.tool.findUnique({ where: { id: params.id } })
+    }): Promise<Tool> => {
+      const item = await db.tool.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
 
       let data: Prisma.ToolUpdateInput = params.data
@@ -131,14 +143,24 @@ export function createToolsClient(this: Requires<"db">) {
         data = { ...params.data, nameEmbedding }
       }
 
-      const updatedItem = await db.tool.update({ where: { id: params.id }, data })
+      const updatedItem = await db.tool.update({
+        where: { id: params.id },
+        data,
+        omit: { nameEmbedding: true },
+      })
       return updatedItem
     },
 
-    delete: async (params: { id: string }) => {
-      const item = await db.tool.findUnique({ where: { id: params.id } })
+    delete: async (params: { id: string }): Promise<Tool> => {
+      const item = await db.tool.findUnique({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       if (!item) throw new SdkError({ code: "NOT_FOUND" })
-      const deletedItem = await db.tool.delete({ where: { id: params.id } })
+      const deletedItem = await db.tool.delete({
+        where: { id: params.id },
+        omit: { nameEmbedding: true },
+      })
       return deletedItem
     },
   }

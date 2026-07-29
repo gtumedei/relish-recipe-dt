@@ -213,7 +213,7 @@ export async function processDishFromSource(
 
   logger.i(`[${dish.id}][${params.adapter}] Processing source ${params.sourceUrl}`)
 
-  // Extract recipes from the source (external API — catch and return error)
+  // Extract recipes from the source (external API, catch and return error)
   let extractedRecipes
   try {
     extractedRecipes = await adapter.processDishFromSource({

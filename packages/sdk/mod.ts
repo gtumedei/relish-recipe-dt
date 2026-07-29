@@ -5,6 +5,11 @@ import { createIngredientsClient } from "~/collections/ingredients.ts"
 import { createRecipeInstancesClient } from "~/collections/recipe-instances.ts"
 import { createRecipesClient } from "~/collections/recipes.ts"
 import { createToolsClient } from "~/collections/tools.ts"
+import {
+  Dish as DishWithEmbeddings,
+  Ingredient as IngredientWithEmbeddings,
+  Tool as ToolWithEmbeddings,
+} from "@relish/storage"
 export * from "~/error.ts"
 
 export {
@@ -17,6 +22,10 @@ export type { IngredientListParams } from "~/collections/ingredients.ts"
 export type { RecipeInstanceListParams } from "~/collections/recipe-instances.ts"
 export type { RecipeListParams } from "~/collections/recipes.ts"
 export type { ToolListParams } from "~/collections/tools.ts"
+
+export type Dish = Omit<DishWithEmbeddings, "nameEmbedding">
+export type Ingredient = Omit<IngredientWithEmbeddings, "nameEmbedding">
+export type Tool = Omit<ToolWithEmbeddings, "nameEmbedding">
 
 export function createSdkClient(this: Requires<"db">) {
   return {
