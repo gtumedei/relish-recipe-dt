@@ -124,15 +124,17 @@ The system uses API keys to protect routes and resources. Keys can only be manag
 
   ```bash
   deno task cli:start api-keys create --name "Full access" --access "
-    Dish:CREATE,READ,UPDATE,DELETE,TASKS
-    Recipe:CREATE,READ,UPDATE,DELETE,TASKS
-    RecipeInstance:CREATE,READ,UPDATE,DELETE,TASKS
-    Ingredient:CREATE,READ,UPDATE,DELETE,TASKS
-    Tool:CREATE,READ,UPDATE,DELETE,TASKS
-    Task:CREATE,READ,UPDATE,DELETE,TASKS"
+    Dish:CREATE,READ,UPDATE,DELETE
+    Recipe:CREATE,READ,UPDATE,DELETE
+    RecipeInstance:CREATE,READ,UPDATE,DELETE
+    Ingredient:CREATE,READ,UPDATE,DELETE
+    Tool:CREATE,READ,UPDATE,DELETE
+    Task:CREATE,READ,UPDATE,DELETE"
   ```
 
 - To create an API key with partial access, just remove a row from the above command (to revoke CRUD access to a certain collection), or an action to forbid a specific operation from a specific collection.
+
+- Access to the `Task` collection carries the ability to retrieve current and past tasks (`READ`) and to launch new ones (`CREATE`)
 
 ## Notes on development practices
 

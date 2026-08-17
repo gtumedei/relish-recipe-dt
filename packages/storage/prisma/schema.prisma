@@ -166,7 +166,6 @@ enum AccessRule {
   READ
   UPDATE
   DELETE
-  TASKS
 }
 
 model Task {

@@ -13,10 +13,10 @@ export const taskRoutes = () =>
   new Hono()
     .use(describeRoute({ tags: ["Tasks"] }))
     .use(requireCollectionAccess("Task"))
-    .use(requireAccessRule("TASKS"))
 
     .get(
       "/",
+      requireAccessRule("READ"),
       describeRoute({
         responses: {
           200: json({ description: "Task list", schema: z.array(z.any()) }),
@@ -36,6 +36,7 @@ export const taskRoutes = () =>
 
     .get(
       "/:id",
+      requireAccessRule("READ"),
       describeRoute({
         responses: {
           200: json({ description: "Task", schema: z.any() }),
@@ -62,6 +63,7 @@ export const taskRoutes = () =>
 
     .post(
       "/dishes/process",
+      requireAccessRule("CREATE"),
       describeRoute({
         responses: {
           202: json({ description: "Task enqueued", schema: z.any() }),
@@ -79,6 +81,7 @@ export const taskRoutes = () =>
 
     .post(
       "/dishes/:dishId/process",
+      requireAccessRule("CREATE"),
       describeRoute({
         responses: {
           202: json({ description: "Task enqueued", schema: z.any() }),
@@ -100,6 +103,7 @@ export const taskRoutes = () =>
 
     .post(
       "/dishes/:dishId/process/:sourceUrl",
+      requireAccessRule("CREATE"),
       describeRoute({
         responses: {
           202: json({ description: "Task enqueued", schema: z.any() }),

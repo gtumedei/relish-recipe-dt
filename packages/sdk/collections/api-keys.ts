@@ -7,9 +7,7 @@ import { SdkError } from "~/error.ts"
 export const CollectionAccessSchema = z.array(
   z.object({
     collection: z.enum(["Dish", "Recipe", "RecipeInstance", "Ingredient", "Tool", "Task"]),
-    rules: z.array(
-      z.enum(["CREATE", "READ", "UPDATE", "DELETE", "TASKS"] satisfies $Enums.AccessRule[]),
-    ),
+    rules: z.array(z.enum(["CREATE", "READ", "UPDATE", "DELETE"] satisfies $Enums.AccessRule[])),
   }),
 )
 
