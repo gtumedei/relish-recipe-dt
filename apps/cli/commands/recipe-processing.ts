@@ -1,5 +1,9 @@
 import { Command, EnumType } from "@cliffy/command"
-import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
+import {
+  checkRecipeMatch,
+  evaluateRecipeLikelihood,
+  extractRecipes,
+} from "@relish/recipe-processing"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
 
@@ -28,9 +32,24 @@ const extractRecipeCommand = new Command()
   .arguments("<content:string>")
   .action(async ({ source }, contentOrPath) => {
     const content = source == "text" ? contentOrPath : await Deno.readTextFile(contentOrPath)
-    const res = await extractRecipe(content)
+    const res = await extractRecipes(content)
     console.log(`${c.blue("→")} Result:\n`)
     console.log(JSON.stringify(res, null, 2))
+  })
+
+const checkRecipeMatchCommand = new Command()
+  .name("check-recipe-match")
+  .description("Check whether an extracted recipe matches a given dish name.")
+  .type("source", new EnumType(["text", "file"]))
+  .option("-s, --source <source:source>", "Read recipe from text or file.", { required: true })
+  .arguments("<dishName:string> <recipe:string>")
+  .action(async ({ source }, dishName, recipeOrPath) => {
+    const recipe = source == "text" ? recipeOrPath : await Deno.readTextFile(recipeOrPath)
+    const spinner = new Spinner({ message: "Checking recipe match...", color: "blue" })
+    spinner.start()
+    const res = await checkRecipeMatch({ dishName, recipe: JSON.parse(recipe) })
+    spinner.stop()
+    console.log(`${c.blue("→")} Result: ${res}`)
   })
 
 export const recipeProcessingCommand = new Command()
@@ -41,3 +60,4 @@ export const recipeProcessingCommand = new Command()
   })
   .command(evaluateRecipeLikelihoodCommand.getName(), evaluateRecipeLikelihoodCommand)
   .command(extractRecipeCommand.getName(), extractRecipeCommand)
+  .command(checkRecipeMatchCommand.getName(), checkRecipeMatchCommand)

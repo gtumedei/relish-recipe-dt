@@ -1,5 +1,5 @@
 import { env } from "@relish/env"
-import { isSemanticMatch } from "@relish/recipe-processing"
+import { checkRecipeMatch, isSemanticMatch } from "@relish/recipe-processing"
 import { Prisma } from "@relish/storage"
 import { Requires, resolve } from "@relish/utils/di"
 import { tryCatch } from "@relish/utils/try"
@@ -247,6 +247,23 @@ export async function processDishFromSource(
     logger.i(
       `[${dish.id}] Processing recipe: "${extractedRecipe.dish}" (confidence: ${extractedRecipe.modelConfidence})`,
     )
+
+    // Double check that the extracted recipe matches the one we are processing.
+    // This prevents storing unrelated content if the source contained more than one recipe.
+    const match = await tryCatch(checkRecipeMatch({ dishName: dish.name, recipe: extractedRecipe }))
+    if (!match.ok) {
+      logger.e(
+        `[${dish.id}] Failed to check recipe match for "${extractedRecipe.dish}"`,
+        match.error,
+      )
+      continue
+    }
+    if (!match.value) {
+      logger.w(
+        `[${dish.id}] Skipping recipe "${extractedRecipe.dish}" because it does not match "${dish.name}"`,
+      )
+      continue
+    }
 
     // Collect all unique ingredient names across all steps
     const allIngredientNames = [

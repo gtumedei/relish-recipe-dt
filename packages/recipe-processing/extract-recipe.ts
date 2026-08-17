@@ -42,9 +42,9 @@ const InitialRecipeSchema = z.object({
   ),
 })
 
-export type ExtractedRecipe = Awaited<ReturnType<typeof extractRecipe>>["result"][number]
+export type ExtractedRecipe = Awaited<ReturnType<typeof extractRecipes>>["result"][number]
 
-export async function extractRecipe(text: string) {
+export async function extractRecipes(text: string) {
   const { object: initialRecipes } = await generateObject({
     model: gpt4oMini,
     system: extractionPrompt,

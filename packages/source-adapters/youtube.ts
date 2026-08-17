@@ -1,5 +1,5 @@
 import { env } from "@relish/env"
-import { evaluateRecipeLikelihood, extractRecipe } from "@relish/recipe-processing"
+import { evaluateRecipeLikelihood, extractRecipes } from "@relish/recipe-processing"
 import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
 import { Requires, resolve } from "@relish/utils/di"
@@ -313,9 +313,9 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
 
       // Extract structured recipe from description
       logger.i(`[${videoId}] Extracting formatted recipe...`)
-      const recipe = await tryCatch(extractRecipe(description.value))
-      if (!recipe.ok) {
-        logger.e(`[${videoId}] Failed to extract recipe:`, recipe.error.message)
+      const recipes = await tryCatch(extractRecipes(description.value))
+      if (!recipes.ok) {
+        logger.e(`[${videoId}] Failed to extract recipe:`, recipes.error.message)
         return []
       }
 
@@ -324,14 +324,14 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId: videoId })
 
       // Assemble final results
-      const recipesWithMetadata: ExtractedRecipeWithMetadata[] = recipe.value.result.map(
+      const recipesWithMetadata: ExtractedRecipeWithMetadata[] = recipes.value.result.map(
         (r, i) => ({
           ...r,
           source: source.url,
           index: i,
           language: metadata?.language as string | undefined,
           location: metadata?.location as string | undefined,
-          modelConfidence: recipe.value.confidence,
+          modelConfidence: recipes.value.confidence,
           plainTextDescription: description.value,
         }),
       )
