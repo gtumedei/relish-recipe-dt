@@ -18,6 +18,17 @@ services:
     depends_on:
       relish-db-push:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 1m
+    # TODO: add health endpoint
+    # healthcheck:
+    #   test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 20s
 
   mongod:
     image: mongodb/mongodb-community-server:8.2.2-ubi8
@@ -41,6 +52,7 @@ services:
       - ./mongo-config/docker-entrypoint-wrapper.sh:/docker-entrypoint-wrapper.sh:ro
     networks:
       - relish-net
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -64,6 +76,7 @@ services:
     depends_on:
       mongod:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       test:
         [
@@ -141,7 +154,7 @@ services:
     restart: "no"
 
   redis:
-    image: redis:latest
+    image: redis:8-alpine
     container_name: relish-redis
     ports:
       - "6379:6379"
