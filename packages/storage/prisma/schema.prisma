@@ -133,7 +133,7 @@ model ProcessedUrl {
 }
 
 type SearchMetadata {
-  youtube String?
+  youtube Json?
 }
 
 enum MediaType {

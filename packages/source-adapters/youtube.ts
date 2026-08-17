@@ -15,7 +15,12 @@ import {
 } from "@relish/utils/video"
 import { join } from "@std/path"
 import dayjs from "dayjs"
-import { ExtractedRecipeWithMetadata, SourceAdapter } from "./mod.ts"
+import {
+  ExtractedRecipeWithMetadata,
+  SourceAdapter,
+  YoutubeSearchParametersSchema,
+  type YoutubeSearchParameters,
+} from "./mod.ts"
 
 // https://developers.google.com/youtube/v3/docs/search/list
 const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
@@ -23,19 +28,7 @@ const BASE_URL = "https://www.googleapis.com/youtube/v3/search"
 // Discard videos that score lower than the recipe likelihood (1-5 scale)
 const RECIPE_LIKELIHOOD_THRESHOLD = 3
 
-type YoutubeSearchParameters = {
-  key: string
-  q: string
-  part: "snippet"
-  type: "video"
-  maxResults: string // 50 max
-  order: "date" | "rating" | "relevance" | "title" | "viewCount"
-  publishedBefore?: string // e.g.: 1970-01-01T00:00:00Z
-  publishedAfter?: string // e.g.: 1970-01-01T00:00:00Z
-  location?: string // e.g.: "37.42307,-122.08427"
-  locationRadius?: string // 1000km max
-  relevanceLanguage?: string // http://www.loc.gov/standards/iso639-2/php/code_list.php
-}
+type YoutubeSearchRequestParams = YoutubeSearchParameters & { key: string }
 
 type YoutubeSearchResult = {
   kind: string
@@ -128,7 +121,6 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
 
   const youtube = {
     findDishSources: async ({ dish }) => {
-      // TODO: validate the dish search parameters
       const defaultParams = {
         key: env.YOUTUBE_API_KEY,
         q: "food",
@@ -137,8 +129,13 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
         maxResults: "3",
         order: "relevance",
         publishedAfter: dayjs().startOf("D").subtract(1, "w").toISOString(), // Fetch videos uploaded in the last week
-      } satisfies YoutubeSearchParameters
-      const allParams = { ...defaultParams, ...JSON.parse(dish.searchMetadata.youtube ?? "{}") }
+      } satisfies YoutubeSearchRequestParams
+
+      const parsedParams = YoutubeSearchParametersSchema.safeParse(dish.searchMetadata.youtube)
+      if (!parsedParams.success) {
+        logger.w("Invalid youtube search metadata, falling back to defaults", parsedParams.error)
+      }
+      const allParams = { ...defaultParams, ...parsedParams.data }
 
       logger.i("Fetching food data from YouTube with the following parameters: ", allParams)
       const url = `${BASE_URL}?${new URLSearchParams(allParams).toString()}`

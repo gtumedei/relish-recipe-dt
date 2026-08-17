@@ -1,3 +1,4 @@
+import { YoutubeSearchParametersSchema } from "@relish/source-adapters"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
@@ -18,7 +19,7 @@ import {
 const { sdk } = container
 
 const SearchMetadataSchema = z.object({
-  youtube: z.string().optional(),
+  youtube: YoutubeSearchParametersSchema.nullish(),
 })
 
 const DishWriteSchema = z.object({

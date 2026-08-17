@@ -1,5 +1,6 @@
-import { ExtractedRecipe } from "@relish/recipe-processing"
-import { Dish } from "@relish/sdk"
+import type { ExtractedRecipe } from "@relish/recipe-processing"
+import type { Dish } from "@relish/sdk"
+export { YoutubeSearchParametersSchema, type YoutubeSearchParameters } from "./search-metadata.ts"
 
 export type SourceAdapter<
   TSource extends { url: string } = { url: string; [key: string]: unknown },
