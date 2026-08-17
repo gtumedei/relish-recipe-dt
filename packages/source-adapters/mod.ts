@@ -26,6 +26,7 @@ export type ExtractedRecipeWithMetadata = ExtractedRecipe & {
   source: string
   index: number
   modelConfidence: number
+  plainTextDescription: string
   location?: string
   language?: string
 }

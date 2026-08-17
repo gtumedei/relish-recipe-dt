@@ -332,6 +332,7 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
           language: metadata?.language as string | undefined,
           location: metadata?.location as string | undefined,
           modelConfidence: recipe.value.confidence,
+          plainTextDescription: description.value,
         }),
       )
 

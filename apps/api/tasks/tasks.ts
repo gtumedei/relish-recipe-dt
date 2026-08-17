@@ -371,6 +371,7 @@ export async function processDishFromSource(
               geonameId: await resolveGeonameId(extractedRecipe.location),
             }
           : null,
+        plainTextDescription: extractedRecipe.plainTextDescription,
         media: [], // TODO: populate media
         ingredients: [...ingredientAggregate.entries()].map(([id, { quantity, unit }]) => ({
           ingredientOrDishId: id,
