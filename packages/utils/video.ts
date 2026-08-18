@@ -6,6 +6,10 @@ import { generateText, experimental_transcribe as transcribe } from "ai"
 import sharp from "sharp"
 import { z } from "zod"
 
+// ---
+// Video duration
+// ---
+
 const FfprobeDurationSchema = z.object({
   format: z.object({
     duration: z.coerce.number(),
@@ -30,6 +34,10 @@ export const getVideoDuration = async (videoPath: string) => {
   }
 }
 
+// ---
+// Audio extraction
+// ---
+
 export const extractAudioFromVideo = async (args: {
   inputVideoPath: string
   outputAudioPath: string
@@ -45,6 +53,10 @@ export const extractAudioFromVideo = async (args: {
     args.outputAudioPath,
   )
 }
+
+// ---
+// Frame extraction
+// ---
 
 const readFrames = async (framesDir: string) => {
   const res = (await Array.fromAsync(Deno.readDir(framesDir)))
@@ -108,6 +120,10 @@ export const extractFramesFromVideo = async (args: {
   }
 }
 
+// ---
+// Caption extraction and formatting
+// ---
+
 /** Convert a timestamp string in the format HH:mm:ss.sss to seconds */
 const timestampToSeconds = (timestamp: string) => {
   const segments = timestamp.split(":")
@@ -167,6 +183,10 @@ export const vttToJson = (vtt: string) => {
   return formattedSegments
 }
 
+// ---
+// Audio transcription
+// ---
+
 export const transcribeAudio = async (audioPath: string) => {
   const { text, segments } = await transcribe({
     model: whisper1,
@@ -186,21 +206,25 @@ export const transcribeAudio = async (audioPath: string) => {
   return { text, segments: formattedSegments }
 }
 
+// ---
+// Video frames description
+// ---
+
 const imageDescriptionPrompt = `
 You are an expert video analysis model.
-You will receive a list of still image frames extracted from a video, one frame per second, in chronological order.
+You will receive a list of still image frames extracted from a video, in chronological order. Frames may be sampled more than one second apart (e.g., one frame every few seconds) and the sequence may not start at second 0.
 Your task is to generate a structured JSON description of what happens in the video exactly as it appears, frame by frame, without reordering, guessing, or adding inferred context.
 
-I will provide you with a sequence of image frames, each labeled with a timestamp in seconds (e.g., "frame-0001.png", "frame-0002.png", "frame-0003.png", etc.).
+I will provide you with a sequence of image frames, each labeled with its **actual timestamp in seconds** (e.g., "frame-0000.png", "frame-0012.png", "frame-0024.png", etc.). The label is the ground truth for the second each frame corresponds to — do not assume frames are one second apart or start at zero.
 Your goal is to describe the events in the video in a **structured, timestamped JSON array**.
 
 Please follow these rules carefully:
 
-1. Each JSON object represents a segment of time (can be a single second or a short range).
+1. Each JSON object represents a segment of time (can be a single frame or a short range of consecutive frames).
 2. Each object must have:
    - \`text\` - a natural-language description of what happens in that time span.
-   - \`startSecond\` - the starting timestamp (integer).
-   - \`endSecond\` - the ending timestamp (integer).
+   - \`startSecond\` - the starting timestamp (integer), taken from the frame labels.
+   - \`endSecond\` - the ending timestamp (integer), taken from the frame labels.
 3. Group consecutive frames together when the same action or scene continues.
 4. Use concise, factual language - describe visible people, objects, motion, or scene changes.
 5. Output **only valid JSON** - no extra commentary, no Markdown, no explanations. For example:
@@ -209,13 +233,13 @@ Please follow these rules carefully:
    [
      {
        "text": "A man sits at a desk typing on a laptop.",
-       "startSecond": 0,
-       "endSecond": 2
+       "startSecond": 10,
+       "endSecond": 20
      },
      {
        "text": "He looks up and waves at someone entering the room.",
-       "startSecond": 3,
-       "endSecond": 5
+       "startSecond": 30,
+       "endSecond": 40
      }
    ]
    \`\`\`
@@ -232,12 +256,31 @@ const OutputSchema = z.array(
   }),
 )
 
-// TODO: batch frames in requests of 10 at most
+export type FrameDescription = { startSecond: number; endSecond: number; text: string }
+
+export type FailedBatch = {
+  /** Index of the batch in the original sequence of batches */
+  index: number
+  /** The error that caused the batch to fail */
+  reason: unknown
+}
+
+export type DescribeVideoFramesResult = {
+  /** Frame descriptions merged from all successfully processed batches */
+  description: FrameDescription[]
+  /** Batches that failed to be described */
+  failedBatches: FailedBatch[]
+  /** Total number of batches the frames were split into */
+  totalBatches: number
+}
+
+const MAX_FRAMES_PER_REQUEST = 10
+
 export const describeVideoFrames = async (
   args:
     | { frames: { label: string; image: string | Uint8Array | ArrayBuffer | URL }[] }
     | { framesDir: string },
-) => {
+): Promise<DescribeVideoFramesResult> => {
   const frames =
     "frames" in args
       ? args.frames
@@ -247,22 +290,46 @@ export const describeVideoFrames = async (
             image: await Deno.readFile(join(args.framesDir, f.name)),
           })),
         )
-  const { text } = await generateText({
-    model: gpt4_1Mini,
-    system: imageDescriptionPrompt,
-    messages: [
-      {
-        role: "user",
-        content: frames.flatMap((frame) => [
-          { type: "text", text: frame.label },
-          { type: "image", image: frame.image },
-        ]),
-      },
-    ],
+
+  const batches = Array.from(
+    { length: Math.ceil(frames.length / MAX_FRAMES_PER_REQUEST) },
+    (_, i) => frames.slice(i * MAX_FRAMES_PER_REQUEST, (i + 1) * MAX_FRAMES_PER_REQUEST),
+  )
+
+  // Process each batch in a separate request, run in parallel to reduce computation time.
+  // Individual batch failures are reported in the result instead of throwing.
+  const results = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const { text } = await generateText({
+        model: gpt4_1Mini,
+        system: imageDescriptionPrompt,
+        messages: [
+          {
+            role: "user",
+            content: batch.flatMap((frame) => [
+              { type: "text", text: frame.label },
+              { type: "image", image: frame.image },
+            ]),
+          },
+        ],
+      })
+      return OutputSchema.parse(JSON.parse(text))
+    }),
+  )
+
+  const description: FrameDescription[] = []
+  const failedBatches: FailedBatch[] = []
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") description.push(...result.value)
+    else failedBatches.push({ index, reason: result.reason })
   })
-  const res = OutputSchema.parse(JSON.parse(text))
-  return res
+
+  return { description, failedBatches, totalBatches: results.length }
 }
+
+// ---
+// Overall video description
+// ---
 
 const videoDescriptionPrompt = `
 You are an expert media analyst and descriptive writer.

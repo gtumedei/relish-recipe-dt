@@ -230,11 +230,26 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
               framesDescription.error.message,
             )
           } else {
-            framesDescriptionContent = JSON.stringify(framesDescription, null, 2)
-            await Deno.writeTextFile(
-              join(videoDir, "frames-description.json"),
-              framesDescriptionContent,
-            ).catch((e) => logger.w(`[${videoId}] Failed to save frames description`, e))
+            const { description, failedBatches, totalBatches } = framesDescription.value
+
+            // Fail only if half or more of the batches failed
+            if (failedBatches.length > 0 && failedBatches.length >= totalBatches / 2) {
+              logger.e(
+                `[${videoId}] Half or more of the frame description batches failed (${failedBatches.length}/${totalBatches}). Skipping frames description.`,
+              )
+            } else {
+              if (failedBatches.length > 0) {
+                logger.w(
+                  `[${videoId}] Ignoring ${failedBatches.length} of ${totalBatches} failed frame description batches`,
+                  failedBatches.map((b) => b.reason),
+                )
+              }
+              framesDescriptionContent = JSON.stringify(description, null, 2)
+              await Deno.writeTextFile(
+                join(videoDir, "frames-description.json"),
+                framesDescriptionContent,
+              ).catch((e) => logger.w(`[${videoId}] Failed to save frames description`, e))
+            }
           }
         }
       }
