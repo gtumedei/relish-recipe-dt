@@ -31,9 +31,10 @@ export const createLogger = ({
   const getLogFn: (params: { type: LogHistoryEntry["type"]; prefix: string }) => LogFunction =
     ({ type, prefix }) =>
     (...args) => {
-      const entry: LogHistoryEntry = { timestamp: new Date(), type, payload: args }
+      const payload = expandErrors(args)
+      console.log(...[prefix, ...payload])
+      const entry: LogHistoryEntry = { timestamp: new Date(), type, payload }
       history.push(entry)
-      console.log(...[prefix, ...expandErrors(args)])
       afterLog(entry)
     }
 
