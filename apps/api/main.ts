@@ -1,4 +1,4 @@
-import { resolve, withContainer } from "@relish/utils/di"
+import { withContainer } from "@relish/utils/di"
 import { Scalar } from "@scalar/hono-api-reference"
 import { blue } from "@std/fmt/colors"
 import { Hono } from "hono"
@@ -40,12 +40,6 @@ withContainer(container, () => {
   app.route("/api/ingredients", ingredientRoutes())
   app.route("/api/tools", toolRoutes())
   app.route("/api/tasks", taskRoutes())
-
-  app.get("/di/test", (c) => {
-    const { sdk } = resolve()
-    console.log(sdk)
-    return c.json({ foo: "bar" })
-  })
 
   app.get(
     "/docs",
