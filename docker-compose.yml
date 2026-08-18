@@ -1,14 +1,14 @@
 services:
-  relish:
+  relish-api:
     build: .
     image: relish:latest
-    container_name: relish
+    container_name: relish-api
     env_file:
       - .env
-    # The container's database URL must use the MongoDB container name
     environment:
       - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
       - REDIS_URL=redis://relish-redis:6379
+    command: ["deno", "task", "server:start"]
     ports:
       - "8000:8000"
     volumes:
@@ -29,6 +29,28 @@ services:
     #   timeout: 5s
     #   retries: 3
     #   start_period: 20s
+
+  relish-worker:
+    build: .
+    image: relish:latest
+    container_name: relish-worker
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=mongodb://admin:${ADMIN_PASSWORD:?Missing ADMIN_PASSWORD}@relish-mongod:27017/relish?authSource=admin&directConnection=true
+      - REDIS_URL=redis://relish-redis:6379
+    command: ["deno", "task", "worker:start"]
+    volumes:
+      - relish_tmp_data:/app/tmp
+    networks:
+      - relish-net
+    depends_on:
+      relish-db-push:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 2m
 
   mongod:
     image: mongodb/mongodb-community-server:8.2.2-ubi8

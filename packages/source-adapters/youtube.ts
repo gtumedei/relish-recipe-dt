@@ -159,7 +159,8 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
       }
 
       let items = data.map((item, i) => ({ score: scores[i], metadata: item }))
-      const filename = join(TMP_DIR, "youtube-scored-results.json")
+      // Generate a unique filename per run to avoid race conditions among multiple workers/replicas calling findDishSources concurrently
+      const filename = join(TMP_DIR, `youtube-scored-results-${crypto.randomUUID()}.json`)
       logger.i(`Saving results to ${filename}`)
       await Deno.writeTextFile(filename, JSON.stringify(items, null, 2))
 

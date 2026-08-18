@@ -102,7 +102,7 @@ The system extracts structured recipe data (ingredients, tools, steps, and more)
   # You can use this shorthand if Deno is installed
   deno task sys:up
   # Or the full command otherwise
-  docker compose up relish mongod mongot redis --build -d
+  docker compose up relish-api relish-worker mongod mongot redis --build -d --scale relish-worker=3
   ```
 
 **Option b. Only the database on Docker** (best for local development)
