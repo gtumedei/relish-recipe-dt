@@ -53,6 +53,29 @@ const readFrames = async (framesDir: string) => {
   return res
 }
 
+// Frame rate for videos at or below SHORT_VIDEO_THRESHOLD
+const SHORT_VIDEO_MAX_FPS = 1
+// Frame rate used for videos at or above LONG_VIDEO_THRESHOLD (1 frame every 10 seconds)
+const LONG_VIDEO_MIN_FPS = 1 / 10
+// Videos at or below this duration are extracted at SHORT_VIDEO_MAX_FPS
+const SHORT_VIDEO_THRESHOLD = 2 * 60 // 120s
+// Videos at or above this duration are extracted at LONG_VIDEO_MIN_FPS
+const LONG_VIDEO_THRESHOLD = 30 * 60 // 1800s
+
+/**
+ * Compute a dynamic frame rate based on the video duration.
+ *
+ * Short videos (<= 2 minutes) result in 1 fps; very long videos (>= 30 minutes) get 1 frame every 10 seconds (0.1 fps). Between the two, the frame spacing is interpolated linearly so the total number of extracted frames stays roughly constant.
+ */
+export const getFramesPerSecond = (durationSeconds: number): number => {
+  if (durationSeconds <= SHORT_VIDEO_THRESHOLD) return SHORT_VIDEO_MAX_FPS
+  if (durationSeconds >= LONG_VIDEO_THRESHOLD) return LONG_VIDEO_MIN_FPS
+  const t =
+    (durationSeconds - SHORT_VIDEO_THRESHOLD) / (LONG_VIDEO_THRESHOLD - SHORT_VIDEO_THRESHOLD)
+  const spacing = 1 / SHORT_VIDEO_MAX_FPS + t * (1 / LONG_VIDEO_MIN_FPS - 1 / SHORT_VIDEO_MAX_FPS)
+  return 1 / spacing
+}
+
 export const extractFramesFromVideo = async (args: {
   videoPath: string
   outDir: string
@@ -69,7 +92,7 @@ export const extractFramesFromVideo = async (args: {
   )
   // Resize images to 1080p if larger than that
   const frames = (await readFrames(args.outDir)).map((f) => join(args.outDir, f.name))
-  for (const frame of frames) {
+  for (const [index, frame] of frames.entries()) {
     const image = sharp(frame)
     const metadata = await image.metadata()
     const size =
@@ -78,6 +101,10 @@ export const extractFramesFromVideo = async (args: {
         : { width: 1080, height: Math.round((metadata.height * 1080) / metadata.width) }
     const data = await image.resize(size.width, size.height).toBuffer()
     await Deno.writeFile(frame, data)
+    // Rename frames to encode their actual timestamp in seconds even when frames are extracted at less than 1 fps
+    const actualSecond = Math.round(index / args.fps)
+    const newName = join(args.outDir, `frame-${`${actualSecond}`.padStart(4, "0")}.jpeg`)
+    if (newName !== frame) await Deno.rename(frame, newName)
   }
 }
 
@@ -205,7 +232,7 @@ const OutputSchema = z.array(
   }),
 )
 
-// TODO: make this function work when frames are interleaved by more than one second
+// TODO: batch frames in requests of 10 at most
 export const describeVideoFrames = async (
   args:
     | { frames: { label: string; image: string | Uint8Array | ArrayBuffer | URL }[] }

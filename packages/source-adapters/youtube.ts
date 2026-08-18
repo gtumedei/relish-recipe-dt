@@ -9,6 +9,7 @@ import {
   describeVideoFrames,
   extractAudioFromVideo,
   extractFramesFromVideo,
+  getFramesPerSecond,
   getVideoDuration,
   transcribeAudio,
   vttToJson,
@@ -211,10 +212,11 @@ export function createYoutubeAdapter(this: Requires<"logger">) {
           logger.w(`[${videoId}] Failed to get video duration:`, duration.error.message)
         else logger.i(`[${videoId}] Video duration: ${Math.floor(duration.value ?? 0)}s`)
 
-        logger.i(`[${videoId}] Extracting frames...`)
+        const fps = duration.ok && duration.value != null ? getFramesPerSecond(duration.value) : 1
+        logger.i(`[${videoId}] Extracting frames at ${fps} fps...`)
         const framesDir = join(videoDir, "frames")
         const framesRes = await tryCatch(
-          extractFramesFromVideo({ videoPath: videoPath.value, outDir: framesDir, fps: 1 }),
+          extractFramesFromVideo({ videoPath: videoPath.value, outDir: framesDir, fps }),
         )
 
         if (!framesRes.ok) {
