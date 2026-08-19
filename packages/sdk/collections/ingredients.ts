@@ -1,7 +1,6 @@
 import { Ingredient } from "@relish/sdk"
-import { Prisma } from "@relish/storage"
+import { db, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
-import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
 import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
@@ -25,9 +24,7 @@ export type IngredientSearchResult = {
   score: number
 }
 
-export function createIngredientsClient(this: Requires<"db">) {
-  const { db } = resolve(this)
-
+export const createIngredientsClient = () => {
   return {
     list: async (params: IngredientListParams): Promise<ListResult<Ingredient>> => {
       const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1

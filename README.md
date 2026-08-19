@@ -144,14 +144,10 @@ The project tries to avoid using classes in favor of a simpler, more concise fac
 
 ### Dependency management
 
-The code in the project can run in three different "environments": REST API handlers, direct execution (CLI), and worker threads. Potentially, all three can run code at the same time, in parallel. To prevent concurrency issues, and to provide different dependency implementations based on the environment, a minimal dependency injection setup was created. See [gtumedei/async-local-storage-function-di](https://github.com/gtumedei/async-local-storage-function-di) for how it works.
+The code in the project can run in three different environments: REST API handlers, direct execution (CLI), and worker threads. Potentially, all three can run code at the same time, in parallel. To prevent concurrency issues, and to provide different dependency implementations based on the environment, a minimal dependency injection setup based on AsyncLocalStorage was created under `packages/di`.
 
 TL;DR:
-- Define a function that requires some dependencies
-  ```typescript
-  function myFunction(this: Requires<"db">) {
-    const { db } = resolve(this)
-    // ...
-  }
-  ```
-- Call it from anywhere, as long as somewhere up in the tree a `withContainer` or `withDependencies` function was called to provide the required dependencies.
+
+1. Wrap any entrypoint in a `withDependencies` call, providing the required dependencies. Current entrypoints include: `apps/cli/main.ts`, `apps/api/main.ts`, and `apps/api/tasks/worker.ts`.
+2. If a dependency requires another dependency to initialize, wrap its creation in `withSelectedDependencies`, passing the required dependencies.
+3. Use dependency getters (e.g. `getLogger`) from anywhere, as long as somewhere up in the tree a `withDependencies` or `withSelectedDependencies` function wraps the chain to provide the required dependencies (point 1).

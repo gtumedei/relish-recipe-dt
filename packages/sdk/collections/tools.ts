@@ -1,7 +1,6 @@
 import { Tool } from "@relish/sdk"
-import { Prisma } from "@relish/storage"
+import { db, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
-import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
 import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
@@ -25,9 +24,7 @@ export type ToolSearchResult = {
   score: number
 }
 
-export function createToolsClient(this: Requires<"db">) {
-  const { db } = resolve(this)
-
+export const createToolsClient = () => {
   return {
     list: async (params: ToolListParams): Promise<ListResult<Tool>> => {
       const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1

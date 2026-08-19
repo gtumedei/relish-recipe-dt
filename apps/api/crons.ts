@@ -1,11 +1,8 @@
-import { cleanupTmpDir } from "@relish/storage"
-import { container } from "~/api.container.ts"
+import { cleanupTmpDir, db } from "@relish/storage"
 
 export const setupCronjobs = () => {
   // Every 5 minutes, cleanup tasks that have not been updated for at least 30 minutes
   Deno.cron("Stuck tasks cleanup", "*/5 * * * *", async () => {
-    const { db } = container
-
     const cutoff = new Date(Date.now() - 30 * 60 * 1000)
     const stuckTasks = await db.task.findMany({
       where: { updatedAt: { lt: cutoff }, completedAt: { not: null } },

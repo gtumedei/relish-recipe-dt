@@ -1,10 +1,15 @@
-import { PrismaClient } from "@relish/storage"
+import { db } from "@relish/storage"
 import { createLogger, type Logger } from "@relish/utils/logger"
 
-export const createPersistedTaskLogger = (
-  db: PrismaClient,
-  { taskId, jobId, prefix }: { taskId: string; jobId?: string; prefix?: string },
-): Logger => {
+export const createPersistedTaskLogger = ({
+  taskId,
+  jobId,
+  prefix,
+}: {
+  taskId: string
+  jobId?: string
+  prefix?: string
+}): Logger => {
   // Track in-flight writes so `flush` can await them before the job ends
   const inFlight = new Set<Promise<void>>()
 

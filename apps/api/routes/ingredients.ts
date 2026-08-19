@@ -1,7 +1,7 @@
+import { sdk } from "@relish/sdk"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
-import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import {
@@ -14,8 +14,6 @@ import {
   sdkErrorResponse,
   SortOrderSchema,
 } from "~/lib/route-utils.ts"
-
-const { sdk } = container
 
 const IngredientWriteSchema = z.object({
   name: z.string().min(1),

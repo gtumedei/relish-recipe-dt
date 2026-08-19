@@ -4,7 +4,6 @@ import {
   Ingredient as IngredientWithEmbeddings,
   Tool as ToolWithEmbeddings,
 } from "@relish/storage"
-import { Requires } from "@relish/utils/di"
 import { createApiKeysClient } from "~/collections/api-keys.ts"
 import { createDishesClient } from "~/collections/dishes.ts"
 import { createIngredientsClient } from "~/collections/ingredients.ts"
@@ -34,7 +33,7 @@ export type Dish = Omit<DishWithEmbeddings, "nameEmbedding" | "searchMetadata"> 
 export type Ingredient = Omit<IngredientWithEmbeddings, "nameEmbedding">
 export type Tool = Omit<ToolWithEmbeddings, "nameEmbedding">
 
-export function createSdkClient(this: Requires<"db">) {
+export const createSdkClient = () => {
   return {
     apiKeys: createApiKeysClient(),
     dishes: createDishesClient(),
@@ -46,3 +45,5 @@ export function createSdkClient(this: Requires<"db">) {
 }
 
 export type SdkClient = ReturnType<typeof createSdkClient>
+
+export const sdk = createSdkClient()

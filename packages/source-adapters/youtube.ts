@@ -1,8 +1,8 @@
+import { getLogger } from "@relish/di"
 import { env } from "@relish/env"
 import { evaluateRecipeLikelihood, extractRecipes } from "@relish/recipe-processing"
 import { TMP_DIR } from "@relish/storage"
 import { CommandError, executeCommand } from "@relish/utils/command"
-import { Requires, resolve } from "@relish/utils/di"
 import { tryCatch } from "@relish/utils/try"
 import {
   describeVideo,
@@ -117,8 +117,8 @@ const parseVideoUrlOrId = (videoURLOrID: string): { url: string; id: string } =>
 
 export type YoutubeSourceAdapter = ReturnType<typeof createYoutubeAdapter>
 
-export function createYoutubeAdapter(this: Requires<"logger">) {
-  const { logger } = resolve(this)
+export const createYoutubeAdapter = () => {
+  const logger = getLogger()
 
   const youtube = {
     findDishSources: async ({ dish }) => {

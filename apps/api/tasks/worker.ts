@@ -1,13 +1,11 @@
+import { withDependencies, withSelectedDependencies } from "@relish/di"
 import { env } from "@relish/env"
-import { withContainer } from "@relish/utils/di"
+import { createAdapters } from "@relish/source-adapters"
+import { db } from "@relish/storage"
 import { Worker, type Job } from "bullmq"
-import { container } from "~/api.container.ts"
 import { createPersistedTaskLogger } from "~/lib/task-logger.ts"
 import { TaskData, TASKS_QUEUE_NAME } from "~/tasks/queue.ts"
 import { processAllDishes, processDish, processDishFromSource } from "~/tasks/tasks.ts"
-import { createWorkerContainer } from "~/tasks/worker.container.ts"
-
-const { db } = container
 
 export type RelishWorkerJob = Job<TaskData>
 
@@ -20,15 +18,16 @@ const worker = new Worker(
     const loggerTaskId = task.data.parentTaskId ?? task.data.taskId
     if (!loggerTaskId) throw new Error("Job has no taskId or parentTaskId")
 
-    const container = createWorkerContainer({
+    const logger = createPersistedTaskLogger({
       taskId: loggerTaskId,
       jobId: task.id,
       prefix: `[job:${task.id}]`,
     })
-    const { logger } = container
     logger.i(`Task started: ${task.data.type}`)
 
-    const result = await withContainer(container, async () => {
+    const adapters = withSelectedDependencies({ logger }, createAdapters)
+
+    const result = await withDependencies({ logger, adapters }, async () => {
       switch (task.data.type) {
         case "processAllDishes":
           return await processAllDishes({ taskId: task.data.taskId! })
@@ -85,7 +84,7 @@ worker.on("active", async (task) => {
     return
   }
 
-  const logger = createPersistedTaskLogger(db, { taskId })
+  const logger = createPersistedTaskLogger({ taskId })
   logger.i("Task started")
   if (task.data.taskId) {
     await db.task.update({
@@ -102,7 +101,7 @@ worker.on("completed", (task: Job) => {
     return
   }
 
-  const logger = createPersistedTaskLogger(db, { taskId })
+  const logger = createPersistedTaskLogger({ taskId })
   logger.s("Task completed")
   // No need to set the status here -> Already handled by the worker
 })
@@ -114,7 +113,7 @@ worker.on("failed", async (task: Job | undefined, err: Error) => {
     return
   }
 
-  const logger = createPersistedTaskLogger(db, { taskId })
+  const logger = createPersistedTaskLogger({ taskId })
   logger.e("Task failed", err)
   if (task?.data.taskId) {
     await db.task.update({

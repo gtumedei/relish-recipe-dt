@@ -1,6 +1,7 @@
 import { Command } from "@cliffy/command"
-import { withContainer } from "@relish/utils/di"
-import { container } from "~/cli.container.ts"
+import { withDependencies, withSelectedDependencies } from "@relish/di"
+import { createAdapters } from "@relish/source-adapters"
+import { createLogger } from "@relish/utils/logger"
 import { apiKeysCommand } from "~/commands/api-keys.ts"
 import { envCommand } from "~/commands/env.ts"
 import { recipeProcessingCommand } from "~/commands/recipe-processing.ts"
@@ -18,6 +19,9 @@ const mainCommand = new Command()
   .command(sourceAdaptersCommand.getName(), sourceAdaptersCommand)
   .command(utilsCommand.getName(), utilsCommand)
 
-withContainer(container, async () => {
+const logger = createLogger()
+const adapters = withSelectedDependencies({ logger }, createAdapters)
+
+withDependencies({ logger, adapters }, async () => {
   await mainCommand.parse(Deno.args)
 })

@@ -1,5 +1,4 @@
-import { $Enums, ApiKey } from "@relish/storage"
-import { Requires, resolve } from "@relish/utils/di"
+import { $Enums, ApiKey, db } from "@relish/storage"
 import { nanoid } from "nanoid"
 import z from "zod"
 import { SdkError } from "~/error.ts"
@@ -14,9 +13,7 @@ export const CollectionAccessSchema = z.array(
 export type ProtectedCollection = z.infer<typeof CollectionAccessSchema>[number]["collection"]
 export type AccessRule = z.infer<typeof CollectionAccessSchema>[number]["rules"][number]
 
-export function createApiKeysClient(this: Requires<"db">) {
-  const { db } = resolve(this)
-
+export const createApiKeysClient = () => {
   return {
     list: async () => {
       const keys = await db.apiKey.findMany()

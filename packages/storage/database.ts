@@ -12,3 +12,5 @@ export const createPrismaClient = () =>
       db: { url: env.DATABASE_URL },
     },
   })
+
+export const db = createPrismaClient()

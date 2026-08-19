@@ -1,7 +1,8 @@
+import { getAdapters, getLogger } from "@relish/di"
 import { env } from "@relish/env"
 import { checkRecipeMatch, isSemanticMatch } from "@relish/recipe-processing"
-import { Prisma } from "@relish/storage"
-import { Requires, resolve } from "@relish/utils/di"
+import { sdk } from "@relish/sdk"
+import { db, Prisma } from "@relish/storage"
 import { tryCatch } from "@relish/utils/try"
 import { enqueueSubJob, queueEvents } from "~/tasks/queue.ts"
 import { RelishWorkerJob } from "~/tasks/worker.ts"
@@ -35,11 +36,10 @@ type ProcessingError = {
 }
 
 /** Fetch all the dishes in the database. Then, for each dish, call `processDish` to find new dish sources. */
-export async function processAllDishes(
-  this: Requires<"sdk" | "logger" | "adapters">,
-  { taskId }: { taskId?: string } = {},
-): Promise<ProcessingResult> {
-  const { sdk, logger } = resolve(this)
+export const processAllDishes = async ({
+  taskId,
+}: { taskId?: string } = {}): Promise<ProcessingResult> => {
+  const logger = getLogger()
 
   const dishes = await sdk.dishes.list({ pagination: false })
   logger.i(`Processing ${dishes.items.length} dishes`)
@@ -105,11 +105,15 @@ export async function processAllDishes(
 }
 
 /** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
-export async function processDish(
-  this: Requires<"sdk" | "logger" | "adapters">,
-  { dishId, taskId }: { dishId: string; taskId?: string },
-): Promise<DishResult> {
-  const { sdk, logger, adapters } = resolve(this)
+export const processDish = async ({
+  dishId,
+  taskId,
+}: {
+  dishId: string
+  taskId?: string
+}): Promise<DishResult> => {
+  const logger = getLogger()
+  const adapters = getAdapters()
 
   const dish = await sdk.dishes.get({ id: dishId })
   if (!dish) throw new Error(`Dish ${dishId} not found`)
@@ -199,11 +203,13 @@ export async function processDish(
 }
 
 /** Process a dish source to extract recipes and store them in the database. */
-export async function processDishFromSource(
-  this: Requires<"db" | "sdk" | "logger" | "adapters">,
-  params: { dishId: string; adapter: string; sourceUrl: string },
-): Promise<SourceResult> {
-  const { db, sdk, logger, adapters } = resolve(this)
+export const processDishFromSource = async (params: {
+  dishId: string
+  adapter: string
+  sourceUrl: string
+}): Promise<SourceResult> => {
+  const logger = getLogger()
+  const adapters = getAdapters()
 
   const dish = await sdk.dishes.get({ id: params.dishId })
   if (!dish) throw new Error(`Dish ${params.dishId} not found`)
@@ -415,11 +421,8 @@ export async function processDishFromSource(
  * Searches for existing ingredients, checks for semantic matches, and creates new entities when no match is found.
  * Returns null if external services (embedding, LLM) are unavailable.
  */
-async function resolveIngredient(
-  this: Requires<"sdk" | "logger">,
-  name: string,
-): Promise<string | null> {
-  const { sdk, logger } = resolve(this)
+const resolveIngredient = async (name: string): Promise<string | null> => {
+  const logger = getLogger()
 
   const results = await tryCatch(sdk.ingredients.search({ query: name, limit: 3 }))
   if (!results.ok) {
@@ -473,8 +476,8 @@ async function resolveIngredient(
  * Searches for existing tools, checks for semantic matches, and creates new entities when no match is found.
  * Returns null if external services (embedding, LLM) are unavailable.
  */
-async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Promise<string | null> {
-  const { sdk, logger } = resolve(this)
+const resolveTool = async (name: string): Promise<string | null> => {
+  const logger = getLogger()
 
   let results
   try {
@@ -524,7 +527,7 @@ async function resolveTool(this: Requires<"sdk" | "logger">, name: string): Prom
  * Look up a GeoNames ID for a location string using the GeoNames search API.
  * Returns the geonameId string if found, or null if the query is empty or no results are returned.
  */
-async function resolveGeonameId(location: string | undefined): Promise<string | null> {
+const resolveGeonameId = async (location: string | undefined): Promise<string | null> => {
   if (!location?.trim()) return null
 
   const params = new URLSearchParams({

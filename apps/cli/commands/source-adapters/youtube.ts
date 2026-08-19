@@ -1,12 +1,8 @@
 import { Command } from "@cliffy/command"
+import { getAdapters } from "@relish/di"
+import { sdk } from "@relish/sdk"
 import { Spinner } from "@std/cli/unstable-spinner"
 import * as c from "@std/fmt/colors"
-import { container } from "~/cli.container.ts"
-
-const {
-  sdk,
-  adapters: { youtube },
-} = container
 
 const findDishSourcesCommand = new Command()
   .name("find-sources")
@@ -15,8 +11,9 @@ const findDishSourcesCommand = new Command()
   .arguments("<dish-id:string>")
   .action(async ({ outfile }, dishId) => {
     console.log(`Searching YouTube for dish ${dishId}...`)
+    const adapters = getAdapters()
     const dish = await sdk.dishes.get({ id: dishId })
-    const sources = await youtube.findDishSources({ dish })
+    const sources = await adapters.youtube.findDishSources({ dish })
     if (outfile) {
       await Deno.writeTextFile(outfile, JSON.stringify(sources, null, 2))
       console.log(`${c.green("✓")} Results saved to ${outfile}`)
@@ -33,8 +30,12 @@ const processDishFromSourceCommand = new Command()
   .arguments("<dish-id:string> <source-url:string>")
   .action(async ({ outfile }, dishId, sourceUrl) => {
     console.log(`Processing ${sourceUrl}...`)
+    const adapters = getAdapters()
     const dish = await sdk.dishes.get({ id: dishId })
-    const recipes = await youtube.processDishFromSource({ dish, source: { url: sourceUrl } })
+    const recipes = await adapters.youtube.processDishFromSource({
+      dish,
+      source: { url: sourceUrl },
+    })
     if (outfile) {
       await Deno.writeTextFile(outfile, JSON.stringify(recipes, null, 2))
       console.log(`${c.green("✓")} Recipes saved to ${outfile}`)
@@ -51,7 +52,8 @@ const downloadVideoCommand = new Command()
   .action(async (_, videoUrl, outDir) => {
     const spinner = new Spinner({ message: "Downloading video...", color: "blue" })
     spinner.start()
-    const videoPath = await youtube.downloadVideo({ videoUrlOrId: videoUrl, outDir })
+    const adapters = getAdapters()
+    const videoPath = await adapters.youtube.downloadVideo({ videoUrlOrId: videoUrl, outDir })
     spinner.stop()
     console.log(`${c.green("✓")} Video downloaded to ${videoPath}`)
   })
@@ -63,7 +65,8 @@ const downloadVideoCaptionsCommand = new Command()
   .action(async (_, videoUrlOrId, outDir) => {
     const spinner = new Spinner({ message: "Downloading video captions...", color: "blue" })
     spinner.start()
-    const captionsPath = await youtube.downloadVideoCaptions({ videoUrlOrId, outDir })
+    const adapters = getAdapters()
+    const captionsPath = await adapters.youtube.downloadVideoCaptions({ videoUrlOrId, outDir })
     spinner.stop()
     console.log(`  Captions saved to ${captionsPath}`)
   })
@@ -75,7 +78,8 @@ const fetchDetailedMetadataCommand = new Command()
   .action(async (_, videoUrlOrId) => {
     const spinner = new Spinner({ message: "Fetching metadata...", color: "blue" })
     spinner.start()
-    const metadata = await youtube.fetchDetailedMetadata({ videoUrlOrId })
+    const adapters = getAdapters()
+    const metadata = await adapters.youtube.fetchDetailedMetadata({ videoUrlOrId })
     spinner.stop()
     console.log(JSON.stringify(metadata, null, 2))
   })

@@ -1,11 +1,8 @@
 import { Command } from "@cliffy/command"
-import { SdkError } from "@relish/sdk"
+import { sdk, SdkError } from "@relish/sdk"
 import { ApiKey } from "@relish/storage"
 import * as c from "@std/fmt/colors"
 import { dedent } from "@std/text/unstable-dedent"
-import { container } from "~/cli.container.ts"
-
-const { sdk } = container
 
 const listKeysCommand = new Command()
   .name("list")

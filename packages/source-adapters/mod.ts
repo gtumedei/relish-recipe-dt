@@ -1,5 +1,6 @@
 import type { ExtractedRecipe } from "@relish/recipe-processing"
 import type { Dish } from "@relish/sdk"
+import { createYoutubeAdapter } from "./youtube.ts"
 export { YoutubeSearchParametersSchema, type YoutubeSearchParameters } from "./search-metadata.ts"
 
 export type SourceAdapter<
@@ -31,3 +32,9 @@ export type ExtractedRecipeWithMetadata = ExtractedRecipe & {
   location?: string
   language?: string
 }
+
+export const createAdapters = () => ({
+  youtube: createYoutubeAdapter(),
+})
+
+export type Adapters = ReturnType<typeof createAdapters>

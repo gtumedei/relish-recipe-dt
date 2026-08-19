@@ -1,8 +1,7 @@
 import type { Dish, SearchMetadata } from "@relish/sdk"
 import { YoutubeSearchParametersSchema } from "@relish/source-adapters"
-import { Prisma } from "@relish/storage"
+import { db, Prisma } from "@relish/storage"
 import { toEmbedding } from "@relish/utils/ai"
-import { Requires, resolve } from "@relish/utils/di"
 import { SdkError } from "~/error.ts"
 import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
@@ -43,9 +42,7 @@ const validateSearchMetadata = (searchMetadata: SearchMetadata | undefined) => {
   }
 }
 
-export function createDishesClient(this: Requires<"db">) {
-  const { db } = resolve(this)
-
+export const createDishesClient = () => {
   return {
     list: async (params: DishListParams): Promise<ListResult<Dish>> => {
       const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1

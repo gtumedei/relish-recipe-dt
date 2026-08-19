@@ -1,4 +1,0 @@
-{
-  "name": "@relish/ingestor",
-  "exports": "./mod.ts"
-}

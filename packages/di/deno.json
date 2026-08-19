@@ -1,0 +1,5 @@
+{
+  "name": "@relish/di",
+  "exports": "./mod.ts",
+  "imports": {}
+}

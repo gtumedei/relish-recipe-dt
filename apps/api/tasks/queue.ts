@@ -1,6 +1,5 @@
 import { env } from "@relish/env"
-import { Task } from "@relish/storage"
-import { Requires, resolve } from "@relish/utils/di"
+import { db, Task } from "@relish/storage"
 import { Queue, QueueEvents, type Job } from "bullmq"
 
 export const TASKS_QUEUE_NAME = "tasks"
@@ -24,11 +23,7 @@ export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME, {
  *
  * The job ID identifies the work itself, so  re-enqueuing the same work while the job is still running returns the existing Task instead of creating a duplicate.
  */
-export async function enqueueJob(
-  this: Requires<"db">,
-  data: TaskTypeData & { taskId?: string },
-): Promise<Task> {
-  const { db } = resolve(this)
+export async function enqueueJob(data: TaskTypeData & { taskId?: string }): Promise<Task> {
   const jobId = jobIdFor(data)
 
   // If the same work is already running, just return the corresponding Task
@@ -57,8 +52,7 @@ export async function enqueueJob(
 }
 
 /** Resolve the Task a job references: its own for top-level jobs, its parent's for sub-jobs. */
-async function taskForJob(this: Requires<"db">, job: Job<TaskData>): Promise<Task> {
-  const { db } = resolve(this)
+const taskForJob = async (job: Job<TaskData>): Promise<Task> => {
   const taskId = job.data.taskId ?? job.data.parentTaskId
   const task = taskId ? await db.task.findUnique({ where: { id: taskId } }) : null
   if (!task) throw new Error("Task not found.")

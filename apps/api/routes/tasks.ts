@@ -1,13 +1,11 @@
+import { db } from "@relish/storage"
 import { Hono } from "hono"
 import { describeRoute, validator } from "hono-openapi"
 import z from "zod"
-import { container } from "~/api.container.ts"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import { IdParamSchema, ObjectIdSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
 import { enqueueJob } from "~/tasks/queue.ts"
-
-const { db } = container
 
 export const taskRoutes = () =>
   new Hono()

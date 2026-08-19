@@ -1,7 +1,6 @@
-import { Prisma, RecipeInstance } from "@relish/storage"
-import { Requires, resolve } from "@relish/utils/di"
+import { db, Prisma, RecipeInstance } from "@relish/storage"
 import { SdkError } from "~/error.ts"
-import { ListResult, DEFAULT_PAGE_SIZE } from "~/shared.ts"
+import { DEFAULT_PAGE_SIZE, ListResult } from "~/shared.ts"
 
 export type RecipeInstanceListParams = {
   pagination: { pageNumber: number; pageSize?: number } | false
@@ -18,9 +17,7 @@ export type RecipeInstanceListParams = {
   }
 }
 
-export function createRecipeInstancesClient(this: Requires<"db">) {
-  const { db } = resolve(this)
-
+export const createRecipeInstancesClient = () => {
   return {
     list: async (params: RecipeInstanceListParams): Promise<ListResult<RecipeInstance>> => {
       const page = params.pagination ? Math.max(1, Math.floor(params.pagination.pageNumber)) : 1
