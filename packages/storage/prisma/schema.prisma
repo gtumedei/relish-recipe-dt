@@ -172,11 +172,24 @@ model Task {
   id          String     @id @default(auto()) @map("_id") @db.ObjectId
   type        TaskType
   status      TaskStatus @default(PENDING)
-  stallCount  Int        @default(0)
-  logs        LogEntry[]
+  logs        TaskLog[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   completedAt DateTime?
+}
+
+model TaskLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id])
+  // BullMQ job id; null when the entry was emitted by the parent job itself
+  jobId     String?
+  type      LogType
+  payload   String[]
+  timestamp DateTime @default(now())
+
+  @@index([taskId, timestamp])
+  @@index([taskId, jobId])
 }
 
 enum TaskType {
@@ -189,15 +202,9 @@ enum TaskStatus {
   PENDING // The task has been added to the queue, but no worker is processing it, yet
   RUNNING // The task is being processed by a worker
   COMPLETED // The task was completed successfully
-  FAILED // The task failed with an error
-  STALLED // The task has been stalled due to a crash in the queue system
+  COMPLETED_WITH_ERRORS // The task completed (i.e. reached the end) despite some errors
+  FAILED // The task failed with an error (i.e. crashed)
   CANCELED // The task was canceled
-}
-
-type LogEntry {
-  timestamp DateTime
-  type      LogType
-  payload   String[]
 }
 
 enum LogType {

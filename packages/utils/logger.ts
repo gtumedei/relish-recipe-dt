@@ -11,11 +11,11 @@ export type Logger = {
   w: LogFunction
   /** Log an error message. */
   e: LogFunction
-  history: LogHistoryEntry[]
-  clearHistory: () => void
+  /** Flush any pending side effects, like persisted log writes. Defaults to a no-op. */
+  flush?: () => Promise<void>
 }
 
-type LogHistoryEntry = {
+export type LogEntry = {
   timestamp: Date
   type: "I" | "S" | "W" | "E"
   payload: any[]
@@ -23,33 +23,31 @@ type LogHistoryEntry = {
 
 export const createLogger = ({
   afterLog = async () => {},
+  flush = async () => {},
+  prefix,
 }: {
-  afterLog?: (entry: LogHistoryEntry) => Promise<void>
+  afterLog?: (entry: LogEntry) => Promise<void>
+  flush?: () => Promise<void>
+  prefix?: string
 } = {}): Logger => {
-  let history: Logger["history"] = []
-
-  const getLogFn: (params: { type: LogHistoryEntry["type"]; prefix: string }) => LogFunction =
-    ({ type, prefix }) =>
+  const getLogFn: (params: { type: LogEntry["type"]; tag: string }) => LogFunction =
+    ({ type, tag }) =>
     (...args) => {
       const payload = expandErrors(args)
-      console.log(...[prefix, ...payload])
-      const entry: LogHistoryEntry = { timestamp: new Date(), type, payload }
-      history.push(entry)
-      afterLog(entry)
+      console.log(...[tag, ...(prefix ? [prefix] : []), ...payload])
+      const entry: LogEntry = { timestamp: new Date(), type, payload }
+      afterLog(entry).catch((error) => {
+        console.error("[logger] afterLog failed:", error)
+      })
     }
 
-  const logger: Logger = {
-    i: getLogFn({ type: "I", prefix: c.blue("[i]") }),
-    s: getLogFn({ type: "S", prefix: c.green("[✓]") }),
-    w: getLogFn({ type: "W", prefix: c.yellow("[!]") }),
-    e: getLogFn({ type: "E", prefix: c.red("[x]") }),
-    history,
-    clearHistory: () => {
-      history = []
-    },
+  return {
+    i: getLogFn({ type: "I", tag: c.blue("[i]") }),
+    s: getLogFn({ type: "S", tag: c.green("[✓]") }),
+    w: getLogFn({ type: "W", tag: c.yellow("[!]") }),
+    e: getLogFn({ type: "E", tag: c.red("[x]") }),
+    flush,
   }
-
-  return logger
 }
 
 /** Expand any `Error` instances in a list of log arguments into a full

@@ -50,7 +50,11 @@ export const taskRoutes = () =>
 
         try {
           const task = await db.task.findUnique({ where: { id: params.id } })
-          const parsedLogs = task?.logs.map((entry) => ({
+          const logs = await db.taskLog.findMany({
+            where: { taskId: params.id },
+            orderBy: { timestamp: "asc" },
+          })
+          const parsedLogs = logs.map((entry) => ({
             ...entry,
             payload: entry.payload.map((it) => JSON.parse(it)),
           }))
