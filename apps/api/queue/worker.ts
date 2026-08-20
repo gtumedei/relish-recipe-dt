@@ -4,14 +4,17 @@ import { createAdapters } from "@relish/source-adapters"
 import { db } from "@relish/storage"
 import { Worker, type Job } from "bullmq"
 import { createPersistedTaskLogger } from "~/lib/task-logger.ts"
-import { TaskData, TASKS_QUEUE_NAME } from "~/tasks/queue.ts"
-import { processAllDishes, processDish, processDishFromSource } from "~/tasks/tasks.ts"
+import { TASKS_QUEUE_NAME } from "~/queue/queue.ts"
+import { processAllDishes } from "~/tasks/process-all-dishes.ts"
+import { processDishFromSource } from "~/tasks/process-dish-from-source.ts"
+import { processDish } from "~/tasks/process-dish.ts"
+import { TaskParameters } from "~/tasks/types.ts"
 
-export type RelishWorkerJob = Job<TaskData>
+export type RelishWorkerJob = Job<TaskParameters>
 
 const worker = new Worker(
   TASKS_QUEUE_NAME,
-  async (task: Job<TaskData>) => {
+  async (task: RelishWorkerJob) => {
     if (!task.id) throw new Error("Task has no identifier")
 
     // Sub-jobs log to the parent's Task record; top-level jobs log to their own

@@ -5,7 +5,7 @@ import z from "zod"
 import { requireAccessRule, requireCollectionAccess } from "~/lib/auth.ts"
 import { json, sdkError, validationError } from "~/lib/openapi-utils.ts"
 import { IdParamSchema, ObjectIdSchema, sdkErrorResponse } from "~/lib/route-utils.ts"
-import { enqueueJob } from "~/tasks/queue.ts"
+import { enqueueJob } from "~/queue/queue.ts"
 
 export const taskRoutes = () =>
   new Hono()

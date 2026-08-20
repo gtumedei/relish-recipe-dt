@@ -1,17 +1,11 @@
 import { env } from "@relish/env"
 import { db, Task } from "@relish/storage"
 import { Queue, QueueEvents, type Job } from "bullmq"
+import { TaskParameters } from "~/tasks/types.ts"
 
 export const TASKS_QUEUE_NAME = "tasks"
 
-type TaskTypeData =
-  | { type: "processAllDishes" }
-  | { type: "processDish"; dishId: string }
-  | { type: "processDishFromSource"; dishId: string; adapter: string; sourceUrl: string }
-
-export type TaskData = { taskId?: string; parentTaskId?: string } & TaskTypeData
-
-export const queue = new Queue<TaskData>(TASKS_QUEUE_NAME, {
+export const queue = new Queue<TaskParameters>(TASKS_QUEUE_NAME, {
   connection: { url: env.REDIS_URL },
 })
 export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME, {
@@ -23,7 +17,7 @@ export const queueEvents = new QueueEvents(TASKS_QUEUE_NAME, {
  *
  * The job ID identifies the work itself, so  re-enqueuing the same work while the job is still running returns the existing Task instead of creating a duplicate.
  */
-export async function enqueueJob(data: TaskTypeData & { taskId?: string }): Promise<Task> {
+export async function enqueueJob(data: TaskParameters & { taskId?: string }): Promise<Task> {
   const jobId = jobIdFor(data)
 
   // If the same work is already running, just return the corresponding Task
@@ -35,11 +29,15 @@ export async function enqueueJob(data: TaskTypeData & { taskId?: string }): Prom
     : await db.task.create({ data: { type: data.type, status: "PENDING" } })
   if (!task) throw new Error("Task not found.")
 
-  const added = await queue.add(data.type, { ...data, taskId: task.id } as TaskData, {
-    jobId,
-    removeOnComplete: true,
-    removeOnFail: true,
-  })
+  const added = await queue.add(
+    data.type,
+    { ...data, taskId: task.id },
+    {
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
+  )
 
   // Two concurrent enqueues can both pass the `getJob` check and create a Task before either `queue.add` lands. Only the first job is stored. Re-read the stored job and, if it does not reference the just-created Task, the other enqueue won the race -> Delete this dangling Task and return the winning job's Task instead.
   const persisted = await queue.getJob(added.id ?? jobId)
@@ -52,21 +50,21 @@ export async function enqueueJob(data: TaskTypeData & { taskId?: string }): Prom
 }
 
 /** Resolve the Task a job references: its own for top-level jobs, its parent's for sub-jobs. */
-const taskForJob = async (job: Job<TaskData>): Promise<Task> => {
+const taskForJob = async (job: Job<TaskParameters>): Promise<Task> => {
   const taskId = job.data.taskId ?? job.data.parentTaskId
   const task = taskId ? await db.task.findUnique({ where: { id: taskId } }) : null
   if (!task) throw new Error("Task not found.")
   return task
 }
 
-type SubJobData = Extract<TaskTypeData, { dishId: string }> & {
+type SubJobData = Extract<TaskParameters, { dishId: string }> & {
   taskId?: string
   parentTaskId: string
 }
 
 /** Enqueue a sub-job without creating a related Task DB record, as the subjob will inherit the parent job's task. */
 export async function enqueueSubJob(data: SubJobData) {
-  return await queue.add(data.type, data as TaskData, {
+  return await queue.add(data.type, data, {
     jobId: jobIdFor(data),
     removeOnComplete: true,
     removeOnFail: true,
@@ -74,7 +72,7 @@ export async function enqueueSubJob(data: SubJobData) {
 }
 
 /** Derive a deterministic job ID for a task, so that overlapping runs of the same work never process in parallel. */
-const jobIdFor = (data: TaskTypeData): string => {
+const jobIdFor = (data: TaskParameters): string => {
   switch (data.type) {
     case "processAllDishes":
       return "processAllDishes"
