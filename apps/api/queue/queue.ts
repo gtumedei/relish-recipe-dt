@@ -57,13 +57,8 @@ const taskForJob = async (job: Job<TaskParameters>): Promise<Task> => {
   return task
 }
 
-type SubJobData = Extract<TaskParameters, { dishId: string }> & {
-  taskId?: string
-  parentTaskId: string
-}
-
 /** Enqueue a sub-job without creating a related Task DB record, as the subjob will inherit the parent job's task. */
-export async function enqueueSubJob(data: SubJobData) {
+export async function enqueueSubJob(data: TaskParameters) {
   return await queue.add(data.type, data, {
     jobId: jobIdFor(data),
     removeOnComplete: true,

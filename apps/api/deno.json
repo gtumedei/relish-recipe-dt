@@ -1,7 +1,7 @@
 {
   "tasks": {
     "server:start": "deno run -A --unstable-cron main.ts",
-    "worker:start": "deno run -A tasks/worker.ts",
+    "worker:start": "deno run -A queue/worker.ts",
     "start": { "dependencies": ["server:start", "worker:start"] }
   },
   "imports": {

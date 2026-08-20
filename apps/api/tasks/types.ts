@@ -1,9 +1,19 @@
+export type TaskType = "processAllDishes" | "processDish" | "processDishFromSource"
+
 export type TaskParameters =
   | ({ type: "processAllDishes" } & Parameters<ProcessAllDishesTask>[0])
   | ({ type: "processDish" } & Parameters<ProcessDishTask>[0])
   | ({ type: "processDishFromSource" } & Parameters<ProcessDishFromSourceTask>[0])
 
 type BaseTaskData = { taskId?: string; parentTaskId?: string }
+
+export type TaskResultMap = {
+  processAllDishes: ProcessAllDishesResult
+  processDish: ProcessDishResult
+  processDishFromSource: ProcessDishFromSourceResult
+}
+
+export type TaskResult = TaskResultMap[TaskType]
 
 export type ProcessAllDishesTask = (parameters: BaseTaskData) => Promise<ProcessAllDishesResult>
 

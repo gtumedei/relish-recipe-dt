@@ -1,8 +1,6 @@
 import { getAdapters, getLogger } from "@relish/di"
 import { sdk } from "@relish/sdk"
-import { enqueueSubJob, queueEvents } from "~/queue/queue.ts"
-import { RelishWorkerJob } from "~/queue/worker.ts"
-import { processDishFromSource } from "~/tasks/process-dish-from-source.ts"
+import { runTask } from "~/tasks/run-task.ts"
 import { ProcessDishResult, ProcessDishTask } from "~/tasks/types.ts"
 
 /** Given a dish, loop through all the source adapters and fetch new dish sources with each one. Then, for each source, call `processDishFromSource` to process it. */
@@ -24,8 +22,6 @@ export const processDish: ProcessDishTask = async ({ dishId, taskId }) => {
     errors: [],
   }
 
-  const childJobs: RelishWorkerJob[] = []
-
   for (const [adapterName, adapter] of Object.entries(adapters)) {
     let sources
     try {
@@ -41,56 +37,35 @@ export const processDish: ProcessDishTask = async ({ dishId, taskId }) => {
     }
 
     logger.i(`[${dish.id}] Fetched ${sources.length} sources using the "${adapterName}" adapter`)
-    for (const source of sources) {
-      if (taskId) {
-        const childJob = await enqueueSubJob({
+
+    const subTasksResults = await Promise.allSettled(
+      sources.map((source) =>
+        runTask({
           type: "processDishFromSource",
           dishId: dish.id,
           adapter: adapterName,
           sourceUrl: source.url,
-          parentTaskId: taskId,
-        })
-        childJobs.push(childJob)
-      } else {
-        try {
-          const sourceResult = await processDishFromSource({
-            dishId: dish.id,
-            adapter: adapterName,
-            sourceUrl: source.url,
-          })
-          dishResult.sourcesProcessed++
-          dishResult.recipesCreated += sourceResult.recipesCreated
-          dishResult.errors.push(...sourceResult.errors)
-        } catch (error) {
-          dishResult.errors.push({
-            context: `dish:${dish.id}/source:${source.url}`,
-            message: error instanceof Error ? error.message : String(error),
-            cause: error,
-          })
-          logger.e(`[${dish.id}] Failed to process source ${source.url}`, error)
-        }
-      }
-    }
-  }
-
-  if (childJobs.length > 0) {
-    logger.i(`[${dish.id}] Waiting for ${childJobs.length} child jobs to complete`)
-    const outcomes = await Promise.allSettled(
-      childJobs.map((j) => j.waitUntilFinished(queueEvents)),
+          taskId,
+        }),
+      ),
     )
-    const failed = outcomes.filter((o) => o.status === "rejected")
-    if (failed.length > 0) {
-      for (const f of failed) {
-        const reason = (f as PromiseRejectedResult).reason
+
+    for (const [index, subTaskResult] of subTasksResults.entries()) {
+      if (subTaskResult.status === "fulfilled") {
+        dishResult.sourcesProcessed++
+        dishResult.recipesCreated += subTaskResult.value.recipesCreated
+        dishResult.errors.push(...subTaskResult.value.errors)
+      } else {
+        const { reason } = subTaskResult
+        const sourceUrl = sources[index].url
         dishResult.errors.push({
-          context: `dish:${dish.id}/childJob`,
+          context: `dish:${dish.id}/source:${sourceUrl}`,
           message: reason instanceof Error ? reason.message : String(reason),
           cause: reason,
         })
+        logger.e(`[${dish.id}] Failed to process source ${sourceUrl}`, reason)
       }
-      logger.e(`[${dish.id}] ${failed.length}/${childJobs.length} child jobs failed`)
     }
-    logger.i(`[${dish.id}] All ${childJobs.length} child jobs completed`)
   }
 
   dishResult.success = dishResult.sourcesProcessed > 0

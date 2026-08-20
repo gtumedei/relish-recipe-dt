@@ -73,7 +73,7 @@ const worker = new Worker(
 
     // Ensure all log writes are persisted before the job is considered done
     await logger.flush?.()
-    return { ok: result.errors.length === 0 }
+    return result
   },
   { connection: { url: env.REDIS_URL }, concurrency: 10 },
 )

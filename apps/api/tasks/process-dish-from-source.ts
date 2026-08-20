@@ -23,14 +23,12 @@ export const processDishFromSource: ProcessDishFromSourceTask = async ({
 
   logger.i(`[${dish.id}][${adapter}] Processing source ${sourceUrl}`)
 
-  // Extract recipes from the source (external API, catch and return error)
-  let extractedRecipes
-  try {
-    extractedRecipes = await adapter.processDishFromSource({
-      dish,
-      source: { url: sourceUrl },
-    })
-  } catch (error) {
+  // Extract recipes from the source
+  const extractedRecipesRes = await tryCatch(
+    adapter.processDishFromSource({ dish, source: { url: sourceUrl } }),
+  )
+  if (!extractedRecipesRes.ok) {
+    const { error } = extractedRecipesRes
     logger.e(`[${dish.id}] Failed to extract recipes from ${sourceUrl}`, error)
     return {
       success: false,
@@ -44,6 +42,7 @@ export const processDishFromSource: ProcessDishFromSourceTask = async ({
       ],
     }
   }
+  const extractedRecipes = extractedRecipesRes.value
 
   // Ensure the source URL is tracked in the database
   let processedUrl = await db.processedUrl.findUnique({ where: { url: sourceUrl } })
@@ -52,7 +51,7 @@ export const processDishFromSource: ProcessDishFromSourceTask = async ({
   }
 
   const sourceErrors: ProcessingError[] = []
-  let recipesCreated = 0
+  let createdRecipes = 0
 
   for (const extractedRecipe of extractedRecipes) {
     logger.i(
@@ -215,8 +214,8 @@ export const processDishFromSource: ProcessDishFromSourceTask = async ({
     })
 
     logger.i(`[${dish.id}] Created recipe instance ${recipeInstance.id}`)
-    recipesCreated++
+    createdRecipes++
   }
 
-  return { success: true, recipesCreated, errors: sourceErrors }
+  return { success: true, recipesCreated: createdRecipes, errors: sourceErrors }
 }
